@@ -1122,6 +1122,34 @@ gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.pdb -dump 0
 两个导出命令都选 **Complex**。如果动画轨迹首帧时间并非 0 ps，先用 `gmx check -f complex_movie.xtc` 查出实际时间，再替换 `-dump 0` 中的数值。配套结构和动画轨迹应使用相同原子顺序。开展 MM/PBSA 或 MM/GBSA 时，另行记录模型、参数、取帧窗口、间隔和不确定性，并将结果作为模型依赖的端点估算解释。  
 Select **Complex** for both exports. If the movie starts at a time other than 0 ps, find its first-frame time with `gmx check -f complex_movie.xtc` and use that value for `-dump`. Ensure that the movie and matching structure use the same atom order. If you run MM/PBSA or MM/GBSA, document the model, parameters, frame window and spacing, and uncertainty. Interpret the result as a model-dependent endpoint estimate. [gmx_MMPBSA documentation](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/)
 
+<a name="pymol-image-export"></a>
+
+### 使用开源 PyMOL 导出无水印图片 / Export figures with open-source PyMOL
+
+查看对接位姿或制作结构图时，可使用 Schrödinger 维护的开源 PyMOL。标准开源构建用 `png` 导出时默认不会在图片上加软件水印。材料与方法中可记录实际版本号、安装来源和出图命令。  
+Use the open-source PyMOL build maintained by Schrödinger to inspect poses or prepare structure figures. Its standard `png` export adds no software watermark by default. Record the installed version, package source, and export command in the methods. [Schrödinger 开源仓库 / Open-source repository](https://github.com/schrodinger/pymol-open-source) · [Oxford Protein Informatics Group](https://www.blopig.com/blog/2023/10/tips-tricks-with-pymol/)
+
+从 conda-forge 安装并启动开源构建。  
+Install and launch the open-source build from conda-forge. [Package page](https://anaconda.org/conda-forge/pymol-open-source)
+
+```bash
+conda create -n pymol-oss --override-channels -c conda-forge pymol-open-source
+conda activate pymol-oss
+pymol
+```
+
+以下命令在 PyMOL 命令行执行，以本节导出的复合物 PDB 为例生成白底 PNG。  
+Run these commands at the PyMOL prompt to render the exported complex PDB as a white-background PNG. [PyMOL `png` command](https://pymolwiki.org/index.php/Png)
+
+```text
+load complex_movie.pdb, complex
+bg_color white
+set ray_opaque_background, on
+png complex.png, width=2400, height=1800, dpi=300, ray=1
+```
+
+引用格式 / Suggested citation · The PyMOL Molecular Graphics System, Version X.Y, Schrödinger, LLC. 将 X.Y 替换成实际安装版本。 / Replace X.Y with your installed version. [PyMOL citation guidance](https://pymol.org/support.html)
+
 ## 12. 常见故障与复现材料 / Troubleshooting and reproducibility
 
 | 现象 / Symptom | 核查与处理 / Check and action |

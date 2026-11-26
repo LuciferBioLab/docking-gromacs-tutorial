@@ -73,54 +73,46 @@ These examples illustrate common operations learners can check while following a
 
 ### 网课错误流程图 / Tutorial error flowchart
 
-沿实线读错误操作顺序，虚线指向可能后果。具体纠正方法见下表。
+按箭头读一条常见的误操作路径。各步骤的后果、纠正方法，以及如何解读对接分数和 RMSD，见下表和轨迹分析章节。
 
 ```mermaid
 flowchart TD
-    Prep["盲删受体组分"]
-    Box["误把网格数当作 Å"]
-    Pose["跳过重对接，只取最低分"]
-    Build["重建坐标、混用力场"]
-    Run["用 -maxwarn 跳过警告"]
-    Claim["凭低分与稳定 RMSD 判强结合"]
-    Prep --> Box --> Pose --> Build --> Run --> Claim
-    Prep -.-> Pocket["口袋或配位信息丢失"]
-    Box -.-> Volume["搜索范围偏离预期"]
-    Pose -.-> Reference["入选位姿缺少对照"]
-    Build -.-> Model["起始位姿或参数失真"]
-    Run -.-> Check["拓扑问题带入模拟"]
-    classDef action fill:#fff2eb,stroke:#b75a39,color:#40251b
-    classDef impact fill:#eef5fc,stroke:#718aa5,color:#172f47
+    Receptor("盲删受体组分") --> Dock("跳过重对接")
+    Box("网格数当盒长") --> Dock
+    Dock --> Pose("重建配体坐标")
+    Dock --> Force("混用力场")
+    Pose --> Warn("跳过建系警告")
+    Force --> Warn
+    Warn --> Claim(["误判为强结合"])
+
+    classDef input fill:#fff2eb,stroke:#a34d37,color:#40251b
+    classDef checkpoint fill:#eef5fc,stroke:#63809f,color:#152e48
     classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
-    class Prep,Box,Pose,Build,Run action
-    class Pocket,Volume,Reference,Model,Check impact
+    class Receptor,Box,Pose,Force input
+    class Dock,Warn checkpoint
     class Claim outcome
 ```
 
 <details>
 <summary>English version</summary>
 
-Follow the solid arrows for the sequence of mistakes. Dotted arrows point to possible consequences. See the table below for corrections.
+Follow the arrows through a common sequence of mistakes. See the table and trajectory analysis section for consequences, corrections, and how to interpret docking scores and RMSD.
 
 ```mermaid
 flowchart TD
-    Prep["Strip receptor components"]
-    Box["Treat grid counts as Å"]
-    Pose["Skip redocking, keep top score"]
-    Build["Rebuild coordinates, mix force fields"]
-    Run["Bypass warnings with -maxwarn"]
-    Claim["Infer affinity from score and RMSD"]
-    Prep --> Box --> Pose --> Build --> Run --> Claim
-    Prep -.-> Pocket["Pocket details lost"]
-    Box -.-> Volume["Wrong search volume"]
-    Pose -.-> Reference["Pose lacks a reference"]
-    Build -.-> Model["Altered pose or parameters"]
-    Run -.-> Check["Unresolved topology issues"]
-    classDef action fill:#fff2eb,stroke:#b75a39,color:#40251b
-    classDef impact fill:#eef5fc,stroke:#718aa5,color:#172f47
+    Receptor("Strip components") --> Dock("Skip redocking")
+    Box("Misread box units") --> Dock
+    Dock --> Pose("Rebuild the pose")
+    Dock --> Force("Mix force fields")
+    Pose --> Warn("Ignore warnings")
+    Force --> Warn
+    Warn --> Claim(["Overclaim binding"])
+
+    classDef input fill:#fff2eb,stroke:#a34d37,color:#40251b
+    classDef checkpoint fill:#eef5fc,stroke:#63809f,color:#152e48
     classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
-    class Prep,Box,Pose,Build,Run action
-    class Pocket,Volume,Reference,Model,Check impact
+    class Receptor,Box,Pose,Force input
+    class Dock,Warn checkpoint
     class Claim outcome
 ```
 

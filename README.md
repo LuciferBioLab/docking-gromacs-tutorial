@@ -73,27 +73,58 @@ These examples illustrate common operations learners can check while following a
 
 ### 网课错误流程图 / Tutorial error flowchart
 
-实线串起一条常见的错误操作链，虚线标出各步可能造成的问题。发现问题时，回到对应步骤核对输入，再决定是否继续。  
-Solid arrows trace a sequence of common mistakes. Dotted arrows show what can go wrong at each step. When an issue appears, revisit the step and check its inputs before proceeding.
+沿实线读错误操作顺序，虚线指向可能后果。具体纠正方法见下表。
 
 ```mermaid
 flowchart TD
-    A["受体制备：删掉所有非蛋白组分 / Strip all nonprotein components"]
-    B["搜索盒：把网格间隔数当成 Å / Use grid interval counts as Å"]
-    C["对接：跳过重对接，只取最低分姿态 / Skip redocking and take the lowest score"]
-    D["转入 MD：重新生成配体三维坐标 / Regenerate the docked ligand geometry"]
-    E["建系：混用 CHARMM 蛋白和 GAFF2 配体 / Mix a CHARMM protein with a GAFF2 ligand"]
-    F["预处理：用 -maxwarn 跳过警告 / Bypass warnings with -maxwarn"]
-    G["解读：用低分和稳定 RMSD 宣称强结合 / Claim strong binding from the score and RMSD"]
-    A --> B --> C --> D --> E --> F --> G
-    A -.-> R1["丢失口袋参考、金属或辅因子 / Lose pocket references, metals, or cofactors"]
-    B -.-> R2["搜索盒大小偏离预期 / Distort the search volume"]
-    C -.-> R3["位姿与口袋接触未经验证 / Leave poses and pocket contacts unverified"]
-    D -.-> R4["进入模拟的配体偏离原始位姿 / Move the ligand away from its original pose"]
-    E -.-> R5["非键合参数和 1–4 规则可能冲突 / Risk incompatible nonbonded and 1–4 rules"]
-    F -.-> R6["拓扑和参数问题未排查 / Leave topology and parameter issues unresolved"]
-    G -.-> R7["结合亲和力缺少独立证据 / Leave affinity claims unsupported"]
+    Prep["盲删受体组分"]
+    Box["误把网格数当作 Å"]
+    Pose["跳过重对接，只取最低分"]
+    Build["重建坐标、混用力场"]
+    Run["用 -maxwarn 跳过警告"]
+    Claim["凭低分与稳定 RMSD 判强结合"]
+    Prep --> Box --> Pose --> Build --> Run --> Claim
+    Prep -.-> Pocket["口袋或配位信息丢失"]
+    Box -.-> Volume["搜索范围偏离预期"]
+    Pose -.-> Reference["入选位姿缺少对照"]
+    Build -.-> Model["起始位姿或参数失真"]
+    Run -.-> Check["拓扑问题带入模拟"]
+    classDef action fill:#fff2eb,stroke:#b75a39,color:#40251b
+    classDef impact fill:#eef5fc,stroke:#718aa5,color:#172f47
+    classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
+    class Prep,Box,Pose,Build,Run action
+    class Pocket,Volume,Reference,Model,Check impact
+    class Claim outcome
 ```
+
+<details>
+<summary>English version</summary>
+
+Follow the solid arrows for the sequence of mistakes. Dotted arrows point to possible consequences. See the table below for corrections.
+
+```mermaid
+flowchart TD
+    Prep["Strip receptor components"]
+    Box["Treat grid counts as Å"]
+    Pose["Skip redocking, keep top score"]
+    Build["Rebuild coordinates, mix force fields"]
+    Run["Bypass warnings with -maxwarn"]
+    Claim["Infer affinity from score and RMSD"]
+    Prep --> Box --> Pose --> Build --> Run --> Claim
+    Prep -.-> Pocket["Pocket details lost"]
+    Box -.-> Volume["Wrong search volume"]
+    Pose -.-> Reference["Pose lacks a reference"]
+    Build -.-> Model["Altered pose or parameters"]
+    Run -.-> Check["Unresolved topology issues"]
+    classDef action fill:#fff2eb,stroke:#b75a39,color:#40251b
+    classDef impact fill:#eef5fc,stroke:#718aa5,color:#172f47
+    classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
+    class Prep,Box,Pose,Build,Run action
+    class Pocket,Volume,Reference,Model,Check impact
+    class Claim outcome
+```
+
+</details>
 
 | 常见做法 / Common shortcut | 会发生什么 / Consequence | 正确操作 / Fix |
 | --- | --- | --- |

@@ -1,33 +1,58 @@
 # 蛋白质–小分子对接与 GROMACS 分子动力学
-**A Reproducible Academic Workflow for Protein–Ligand Docking and GROMACS MD**
 
-**中文 / English** · CPU / NVIDIA CUDA · Linux · Windows + WSL2
+**A reproducible workflow for protein–ligand docking and molecular dynamics**
 
-本仓库为学术研究和科研教学提供一套标准化、可复现的操作流程，覆盖结构来源记录、批量对接、位姿和拓扑验收、分子动力学、轨迹分析及论文出图。各阶段说明需要保留的文件和检查依据，便于团队复核方法和复现结果。  
+**中文 / English** · CPU / NVIDIA CUDA · Linux / Windows + WSL2
 
-This repository provides a standardized, reproducible workflow for academic research and training. It covers structure provenance, batch docking, pose and topology validation, molecular dynamics, trajectory analysis, and publication figures. Each stage identifies what to archive and check so other researchers can review and reproduce the work.
+本教程面向学术研究和科研教学。流程从受体 PDB 和配体 SDF 开始，覆盖批量对接、位姿与拓扑核对、显式溶剂分子动力学、轨迹分析和论文出图。每个阶段给出操作步骤和需要归档的材料，便于他人复核与复现。
 
-从受体 PDB 和配体 SDF 开始。用 **Molscrub** 准备配体的质子化状态、互变异构体和 3D 构象，用 **RDKit** 审核化学结构，用 **Meeko** 制备对接输入。使用 **AutoDock Vina（CPU）** 或 **Uni-Dock（NVIDIA CUDA）** 批量对接。
+This guide documents a reproducible workflow for academic research and training. Starting from a receptor PDB and a ligand SDF, it covers batch docking, pose and topology validation, explicit-solvent molecular dynamics (MD), trajectory analysis, and publication figures. Each stage identifies the commands and records needed to reproduce the work.
 
-对接到 MD 有两条交接路线。**新项目用 Meeko 保留映射、导出 SDF，再用 RDKit 核对**。**旧 ADT 结果用同一化学状态的原始 SDF 作模板，由 RDKit 按原子映射回填对接坐标**。两条路线通过化学与坐标检查后，用 **Open Babel** 转为 MOL2。蛋白拓扑由 **GROMACS pdb2gmx** 生成，配体在 AMBER 路线上用 **AmberTools / ACPYPE** 生成 GAFF2 + AM1-BCC 参数，在 CHARMM 路线上用 **CGenFF**。复合物在 **GROMACS** 中完成建系、平衡与生产模拟，随后分析轨迹，并可用开源 **PyMOL** 出图。
+**适用范围 / Scope.** 默认体系为水溶液中的可溶蛋白与单个非共价结合、化学状态明确的有机小分子。膜蛋白、共价配体、必需金属或辅因子、非标准残基需要专项建模。  
+The baseline protocol is designed for a soluble protein and one noncovalently bound organic small molecule in water. Membrane proteins, covalent ligands, essential metals or cofactors, and nonstandard residues require system-specific protocols.
 
-Start with a receptor PDB and ligand SDF. Use **Molscrub** for protonation states, tautomers, and 3D conformers, **RDKit** for chemical review, and **Meeko** for docking inputs. Run batch docking with **AutoDock Vina (CPU)** or **Uni-Dock (NVIDIA CUDA)**.
+<a name="start-here"></a>
 
-Two routes transfer poses to MD. **For new jobs, retain Meeko mappings, export SDF, and check it with RDKit. For an existing ADT result, use the original SDF for the same chemical state and map the docked coordinates onto it with RDKit.** After checking chemistry and coordinates, use **Open Babel** to convert the verified SDF to MOL2. Generate the protein topology with **GROMACS pdb2gmx** and use **AmberTools / ACPYPE** for GAFF2 + AM1-BCC in the AMBER workflow or **CGenFF** in the CHARMM workflow. Use **GROMACS** for system setup, equilibration, and production, then analyze trajectories and make figures with open-source **PyMOL**.
+## 从这里开始 / Start here
 
-[完整流程图 / Full workflow](#overview) · [两条 MD 交接路线 / Two pose handoffs](#pose-handoff) · [网课方法对照 / Workflow comparison](#chem3d-pymol-topology)  
-[论文出图 / Publication figures](#publication-figures) · [工具、官网与源码 / Tools and sources](#sources) · [方法依据 / Evidence](#method-evidence) · [免责声明 / Disclaimer](#disclaimer) · [致谢 / Acknowledgments](#acknowledgments)
+- **首次使用 / First run.** 先[安装环境](#setup)，再用有共晶结构的 **1IEP（c-Abl–imatinib）** 完成[重对接验收](#benchmark)。按设备选择 AutoDock Vina（CPU）或 Uni-Dock（CUDA）。  
+  Set up the environment and use the **1IEP c-Abl–imatinib** co-crystal as the reference redocking case. Select AutoDock Vina (CPU) or Uni-Dock (CUDA) for your hardware.
+- **已有对接结果 / Docking output available.** 跳到[位姿交接](#pose-handoff)。带 Meeko 映射的结果用 Meeko 导出 SDF。已有旧 ADT 结果时，用原始 SDF 和经核实的原子映射恢复对接坐标。  
+  Go to pose transfer. Export SDF from Meeko-mapped output, or use the original SDF and a verified atom map to recover coordinates from a legacy ADT run.
+- **已有轨迹 / Trajectory available.** 从[轨迹处理与分析](#analysis)开始，然后按[论文出图章节](#publication-figures)整理结构图、曲线和图版。  
+  Start with trajectory processing and analysis, then follow the figure workflow for molecular views, quantitative plots, and panel assembly.
 
-适用体系为水溶液中的常规可溶蛋白与**一个非共价结合、有明确化学结构的有机小分子**。膜环境、结合所需的金属或辅因子、非标准残基和共价配体需要针对体系另行建模。对接分数用于筛选候选，轨迹用于分析所选模型在给定条件下的行为。实验结合亲和力与药效需要独立证据。
+**官方速查 / Upstream documentation**  
+[AutoDock Vina 手册](https://autodock-vina.readthedocs.io/en/latest/) · [Uni-Dock 文档](https://github.com/dptech-corp/Uni-Dock/tree/main/unidock) · [Meeko 手册](https://meeko.readthedocs.io/) · [GROMACS 官网](https://www.gromacs.org/) · [GROMACS 2026.3 手册](https://manual.gromacs.org/2026.3/) · [开源 PyMOL](https://github.com/schrodinger/pymol-open-source)
 
-The baseline covers a soluble protein and **one well-defined, noncovalently bound organic small molecule** in water. Membranes, essential metals or cofactors, nonstandard residues, and covalent ligands require system-specific modeling. Use docking scores to prioritize candidates and trajectories to study the chosen model under the specified conditions. Experimental affinity and activity require independent evidence.
+<a name="contents"></a>
+
+## 目录 / Contents
+
+- **概览 / Overview**
+  - [完整流程图 / Workflow overview](#overview) · [工具与文件交接 / Tools and file handoffs](#toolchain)
+- **01–05 · 对接与位姿恢复 / Docking and pose recovery**
+  - [01. 部署 / Environment setup](#setup) · [02. 共晶重对接 / Reference redocking](#benchmark)
+  - [03. 受体与配体制备 / Structure preparation](#docking) · [04. CPU/CUDA 批量对接 / Batch docking](#batch-docking)
+  - [05. 对接位姿交接 / Pose transfer](#pose-handoff) · [旧 ADT 结果恢复 / Legacy ADT recovery](#legacy-adt-handoff)
+- **06–10 · 参数化、建系与模拟 / Parameterization, system setup, and simulation**
+  - [06. 两套力场与配体参数 / Force fields and ligand parameters](#topology) · [07. 蛋白拓扑与组装 / Protein topology and assembly](#complex-assembly)
+  - [08. MDP 参数 / Run parameters](#simulation) · [09. 建系、最小化与平衡 / Setup and equilibration](#equilibration)
+  - [10. 试跑、生产与续跑 / Pilot, production, and restart](#production)
+- **11–12 · 结果、出图与复现 / Analysis, figures, and reproducibility**
+  - [11. 轨迹分析 / Trajectory analysis](#analysis) · [MM/GBSA 与 MM/PBSA / Endpoint energy estimates](#endpoint-energy)
+  - [论文出图与组图 / Publication figures](#publication-figures) · [Agent 与 Skills](#agent-workflow) · [12. 排错与复现 / Troubleshooting and records](#reproducibility)
+  - [网课错误流程图 / Common tutorial pitfalls](#tutorial-error-flow) · [Chem3D–ADT–PyMOL 对照案例 / Workflow comparison](#chem3d-pymol-topology)
+- **13–16 · 来源、引用与致谢 / Sources, citation, and acknowledgments**
+  - [方法选择依据 / Evidence for method choices](#method-evidence) · [13. 工具、官网与源码 / Tools and upstream sources](#sources)
+  - [14. 论文与工具引用 / References and software citation](#references) · [15. 免责声明 / Disclaimer](#disclaimer) · [16. 致谢 / Acknowledgments](#acknowledgments)
 
 <a name="overview"></a>
 
-## 完整流程图 / Full workflow
+## 完整流程图 / Workflow overview
 
 从两条输入开始。受体按所选链和结构状态准备，配体按所选化学状态准备。对接引擎、MD 力场和 GROMACS 设备可以独立选择。首次使用先做[共晶重对接验收 / co-crystal redocking](#setup)。  
-Start from two inputs. Prepare the selected receptor structure and ligand chemical state. Choose the docking engine, force-field family, and GROMACS backend independently. Validate the engine on a co-crystal case first.
+The receptor structure and ligand microstate are prepared separately. Choose the docking engine, molecular dynamics force field, and compute backend independently. Use the co-crystal benchmark to verify the docking installation and protocol.
 
 ```mermaid
 flowchart TD
@@ -171,7 +196,7 @@ Matplotlib`"]
 
 <a name="toolchain"></a>
 
-### 用到了哪些工具 / Tools used
+### 工具与文件交接 / Tools and file handoffs
 
 | 步骤 / Step | 工具与职责 / Tools and roles | 关键文件或检查 / Files or checks |
 | --- | --- | --- |
@@ -184,200 +209,15 @@ Matplotlib`"]
 | [08–10 建系与生产 / Setup and production](#simulation) | GROMACS 完成建盒、加水加盐、EM、NVT、NPT、解除位置限制后试跑、生产和检查点续跑。 / GROMACS handles boxing, solvation, ions, EM, NVT, NPT, unrestrained tests, production, and restarts. | MDP、TPR、CPT、EDR、XTC 与日志。 / MDP, TPR, CPT, EDR, XTC, and logs. |
 | [11–12 分析与出图 / Analysis and figures](#analysis) | GROMACS / MDAnalysis 处理轨迹，gmx_MMPBSA 可做端点能量估算。开源 PyMOL 出结构图，pandas / Matplotlib / seaborn 出曲线与统计图，Inkscape 或可选的 GIMP / Photoshop 组图。 / GROMACS and MDAnalysis analyze trajectories. gmx_MMPBSA can estimate endpoint energies. Open-source PyMOL renders structures, pandas / Matplotlib / seaborn prepare plots, and Inkscape or optional GIMP / Photoshop assembles panels. | XVG、CSV、代表结构、结构图 PNG、矢量曲线图和可编辑图版。 / XVG, CSV, representative structures, structure PNGs, vector plots, and editable figures. |
 
-## 网课常见误操作 / Common tutorial mistakes
-
-下例用常见教学操作复现问题，供跟练时自查。  
-These examples illustrate common operations learners can check while following a tutorial.
-
-<a name="tutorial-error-flow"></a>
-
-### 网课错误流程图 / Tutorial error flowchart
-
-按箭头读一条常见的误操作路径。各步骤的后果、纠正方法，以及如何解读对接分数和 RMSD，见下表和轨迹分析章节。
-
-```mermaid
-flowchart TD
-    Receptor("盲删受体组分") --> Dock("跳过重对接")
-    Box("网格数当盒长") --> Dock
-    Dock --> Pose("重建配体坐标")
-    Dock --> Force("混用力场")
-    Pose --> Warn("跳过建系警告")
-    Force --> Warn
-    Warn --> Claim(["误判为强结合"])
-
-    classDef input fill:#fff2eb,stroke:#a34d37,color:#40251b
-    classDef checkpoint fill:#eef5fc,stroke:#63809f,color:#152e48
-    classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
-    class Receptor,Box,Pose,Force input
-    class Dock,Warn checkpoint
-    class Claim outcome
-```
-
-<details>
-<summary>English version</summary>
-
-Follow the arrows through a common sequence of mistakes. See the table and trajectory analysis section for consequences, corrections, and how to interpret docking scores and RMSD.
-
-```mermaid
-flowchart TD
-    Receptor("Strip components") --> Dock("Skip redocking")
-    Box("Misread box units") --> Dock
-    Dock --> Pose("Rebuild the pose")
-    Dock --> Force("Mix force fields")
-    Pose --> Warn("Ignore warnings")
-    Force --> Warn
-    Warn --> Claim(["Overclaim binding"])
-
-    classDef input fill:#fff2eb,stroke:#a34d37,color:#40251b
-    classDef checkpoint fill:#eef5fc,stroke:#63809f,color:#152e48
-    classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
-    class Receptor,Box,Pose,Force input
-    class Dock,Warn checkpoint
-    class Claim outcome
-```
-
-</details>
-
-| 常见做法 / Common shortcut | 会发生什么 / Consequence | 正确操作 / Fix |
-| --- | --- | --- |
-| 删除所有非蛋白原子 / Delete everything outside the protein | 可能丢失界定口袋的共晶配体、维持配位的金属或必要辅因子。 / This can remove the co-crystal reference ligand, a coordination metal, or an essential cofactor. | 先另存参考配体，记录各异质成分的保留与去除理由。需要金属或辅因子的体系专项建模。 / Save the reference ligand first and document each component decision. Model essential metals and cofactors explicitly. |
-| 把 ADT 盒子的 60 个间隔写成 Vina 的 `size_x = 60` / Copy 60 ADT intervals into Vina as `size_x = 60` | 若间隔为 0.375 Å，实际示例边长为 22.5 Å，输入 60 会显著扩大搜索空间。 / At 0.375 Å per interval, the intended length is 22.5 Å. Entering 60 greatly enlarges the search space. | 转成 Å，再叠加受体和参考配体验证覆盖。 / Convert to Å and inspect coverage on the receptor and reference ligand. |
-| 把已对接的 PDBQT 转 MOL2 时重建 3D，再接 MD / Regenerate 3D geometry while converting a docked PDBQT to MOL2 | 恢复的化学图可能错误，配体有可能移出口袋或改变位姿。 / The reconstructed graph can be wrong and the ligand may move or change pose. | Meeko 恢复原始 SDF 化学图，Open Babel 仅做格式转换并保留原位重原子坐标。 / Recover the SDF graph with Meeko, then convert the format while retaining the pose coordinates. |
-| CUDA 能识别显卡，就给官方 `vina.exe` 加 GPU 参数 / Treat a working CUDA driver as GPU support in upstream `vina.exe` | 官方 Vina 的普通批处理仍由 CPU 执行。 / Standard upstream Vina batch docking still runs on the CPU. | 选择 Uni-Dock CUDA 或上游明确提供 GPU 后端的程序，并通过日志和设备监控确认。 / Choose Uni-Dock CUDA or an engine with a documented GPU backend and check both its log and device activity. |
-| 将 GAFF2 配体直接 include 到 CHARMM36m 蛋白拓扑 / Include a GAFF2 ligand directly in a CHARMM36m topology | 非键合默认项、1–4 规则及参数体系可能冲突。 / Nonbonded defaults, 1–4 rules, and parameter conventions can conflict. | 使用 AMBER + GAFF2 或 CHARMM + CGenFF 的匹配路线。 / Use the matched AMBER + GAFF2 or CHARMM + CGenFF combination. |
-| 遇到 grompp warning 直接抬高 `-maxwarn`，或把最低对接分数当作亲和力 / Raise `-maxwarn` after warnings or interpret the lowest docking score as affinity | 可能放行错序拓扑、未知参数或误读筛选结果。 / This can hide topology and parameter problems or overstate a screening result. | 检查展开拓扑、警告原文和重对接结果，用独立实验评价亲和力。 / Review the expanded topology, warning messages, and redocking, and use independent experiments to assess affinity. |
-
-<a name="chem3d-pymol-topology"></a>
-
-### 网课错误方法与本教程路线 / Tutorial shortcut and reviewed workflow
-
-先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列以新项目的 Meeko 路线为例，先恢复 SDF 并核对化学与位姿，再转 MOL2 和参数化。已经完成对接的 ADT 项目，见[路线 B 的原始 SDF 模板恢复](#legacy-adt-handoff)。
-
-```mermaid
-flowchart TD
-    start["同一小分子"]
-    wrong["网课误操作"]
-    right["本教程路线"]
-    w1["`Chem3D
-导出 MOL2`"]
-    r1["`Molscrub
-RDKit · SDF`"]
-    w2["`AutoDockTools
-制备 PDBQT`"]
-    r2["`Meeko
-制备 PDBQT`"]
-    w3["`Vina
-output.pdbqt`"]
-    r3["`Vina / Uni‑Dock
-对接位姿`"]
-    w4["`PyMOL
-直接另存 MOL2`"]
-    r4["`Meeko · RDKit
-恢复并核对 SDF`"]
-    w5["`直接参数化
-生成 lig.top`"]
-    r5["`Open Babel
-原位转 MOL2`"]
-    w6["化学未经核对"]
-    r6["`ACPYPE / CGenFF
-生成配体拓扑`"]
-    start --> wrong & right
-    wrong --> w1 --> w2 --> w3 --> w4 --> w5 --> w6
-    right --> r1 --> r2 --> r3 --> r4 --> r5 --> r6
-
-    classDef source fill:#edf3fc,stroke:#5b7fa9,color:#18324f,stroke-width:1.5px
-    classDef legacy fill:#fff2ed,stroke:#b26953,color:#462d25,stroke-width:1.5px
-    classDef reviewed fill:#e4f6ef,stroke:#548f7c,color:#164436,stroke-width:1.5px
-    classDef risk fill:#9b3643,stroke:#842933,color:#ffffff,stroke-width:1.5px
-    classDef approved fill:#176154,stroke:#176154,color:#ffffff,stroke-width:1.5px
-    class start source
-    class w1,w2,w3,w5 legacy
-    class r1,r2,r3,r5 reviewed
-    class wrong,w4,w6 risk
-    class right,r4,r6 approved
-```
-
-**风险出在对接到 MD 的交接。** Chem3D 可以用于构象准备，MOL2 也可以作为参数化输入。PDBQT 保存对接坐标、原子类型和部分电荷，缺少用于可靠还原完整键级和形式电荷的信息。非极性氢也常在制备时合并。PyMOL 另存为 MOL2 时，即使重原子位置看起来一致，也需要对照原始配体检查键级、芳香性、质子化状态和净电荷。参数化完成只说明工具处理了该输入，化学状态仍需单独核对。MD 的部分电荷应按所选力场方案生成。
-
-**可靠的交接方法。** 保留与对接输入同一化学状态的原始 SDF 或 MOL2。用 Meeko 制备配体时保留 `REMARK SMILES` 和 `REMARK SMILES IDX`，从所选对接位姿恢复 SDF，再逐原子核对重原子坐标、键级、手性和净电荷。确需 MOL2 时只转换格式，保留已核对的位姿，最后用所选的 AMBER 或 CHARMM 路线参数化。旧版 ADT 的输出若缺少 Meeko 映射，可用原始结构做可靠的原子映射。无法确认映射时，用 Meeko 重新制备并对接。
-
-<details>
-<summary>Workflow comparison in English</summary>
-
-The tutorial route optimizes the ligand in Chem3D, exports MOL2, and prepares PDBQT with AutoDockTools (ADT). Vina then writes `output.pdbqt`. The shortcut is to save the chosen pose directly as MOL2 in PyMOL and use it for `lig.top` or `lig.itp` without checking the chemistry. The right column shows the Meeko route for new runs. A completed ADT job can use [the original SDF template route](#legacy-adt-handoff).
-
-```mermaid
-flowchart TD
-    start["Same ligand"]
-    wrong["Tutorial shortcut"]
-    right["Reviewed workflow"]
-    w1["`Chem3D
-Export MOL2`"]
-    r1["`Molscrub
-RDKit · SDF`"]
-    w2["`AutoDockTools
-Prepare PDBQT`"]
-    r2["`Meeko
-Prepare PDBQT`"]
-    w3["`Vina
-output.pdbqt`"]
-    r3["`Vina / Uni‑Dock
-Docked poses`"]
-    w4["`PyMOL
-Save MOL2 directly`"]
-    r4["`Meeko · RDKit
-Check pose SDF`"]
-    w5["`Parameterize directly
-Build lig.top`"]
-    r5["`Open Babel
-SDF → MOL2`"]
-    w6["Unchecked graph"]
-    r6["`ACPYPE / CGenFF
-Build ligand topology`"]
-    start --> wrong & right
-    wrong --> w1 --> w2 --> w3 --> w4 --> w5 --> w6
-    right --> r1 --> r2 --> r3 --> r4 --> r5 --> r6
-
-    classDef source fill:#edf3fc,stroke:#5b7fa9,color:#18324f,stroke-width:1.5px
-    classDef legacy fill:#fff2ed,stroke:#b26953,color:#462d25,stroke-width:1.5px
-    classDef reviewed fill:#e4f6ef,stroke:#548f7c,color:#164436,stroke-width:1.5px
-    classDef risk fill:#9b3643,stroke:#842933,color:#ffffff,stroke-width:1.5px
-    classDef approved fill:#176154,stroke:#176154,color:#ffffff,stroke-width:1.5px
-    class start source
-    class w1,w2,w3,w5 legacy
-    class r1,r2,r3,r5 reviewed
-    class wrong,w4,w6 risk
-    class right,r4,r6 approved
-```
-
-Chem3D can prepare conformers, and MOL2 can be valid input for parameterization. PDBQT stores docking coordinates, atom types, and partial charges, with insufficient information to reliably restore all bond orders and formal charges. Nonpolar hydrogens are also commonly merged during preparation. Even when the heavy-atom position looks unchanged, verify bond orders, aromaticity, protonation, and net charge against the original ligand. Generate MD partial charges using the chosen force-field protocol.
-
-Keep the original SDF or MOL2 for the same chemical state. With the Meeko SMILES and atom-mapping remarks, recover the selected pose as SDF and verify heavy-atom coordinates, bond orders, stereochemistry, and net charge. If MOL2 is needed, convert the format while preserving the pose before parameterization. For legacy ADT output, establish an unambiguous mapping to the original ligand. If the mapping cannot be verified, prepare the ligand with Meeko and dock again.
-
-</details>
-
-依据 / References · [Vina: Exporting results to SDF](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf) · [Meeko: Exporting docking results](https://meeko.readthedocs.io/en/develop/export_usage.html) · [PyMOL: Save](https://pymolwiki.org/index.php/Save) · [ACPYPE: Ligand parameterization](https://acpype.readthedocs.io/en/latest/)
-
-例如，一个来自 Meeko 对接任务的 PDBQT 应先恢复为 SDF，再取经核对的记录转 MOL2。以下在步骤 05 的目录运行，`1` 是核对过的记录号示例。  
-For example, restore SDF chemistry before converting a selected Meeko docking record to MOL2. Run this in the step 05 directory. Replace record `1` with the verified record number.
-
-```bash
-mk_export.py selected_run.pdbqt -s docked_poses.sdf
-obabel docked_poses.sdf -f 1 -l 1 -O lig_pose.sdf
-obabel lig_pose.sdf -O lig_pose.mol2
-```
-
-上游依据 / Upstream references · [Vina box and pose export](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [GROMACS force fields](https://manual.gromacs.org/2026.3/user-guide/force-fields.html) · [grompp warnings and expanded topology](https://manual.gromacs.org/current/onlinehelp/gmx-grompp.html)
-
 <a name="setup"></a>
 
-## 01. 部署 / Install the tools
+## 01. 环境与安装 / Environment setup and installation
 
 ### Linux 服务器 / Linux server
 
 从 [Miniforge 官方发布页](https://github.com/conda-forge/miniforge/releases) 选择与系统和架构匹配的安装包，并按发布页提供的信息校验。下文使用 Bash，默认在项目根目录操作，遇到报错时先检查该步。软件示例使用 Vina 1.2.7、Uni-Dock 1.2.0 和 GROMACS 2026.3 的命令语法。已安装 Miniforge 时直接创建环境。
 
-Choose an installer for your operating system and architecture from the [Miniforge releases](https://github.com/conda-forge/miniforge/releases) and verify it against the release information. The instructions use Bash and assume the project root unless stated otherwise. Resolve errors before continuing. The command examples use Vina 1.2.7, Uni-Dock 1.2.0, and GROMACS 2026.3 syntax. If Miniforge is already installed, go straight to environment creation.
+Use the Miniforge installer for your operating system and architecture, and verify it against the published release information. Command blocks assume Bash and the project root unless specified. The examples use the syntax of Vina 1.2.7, Uni-Dock 1.2.0, and GROMACS 2026.3. If Miniforge is already available, proceed to environment creation. [Miniforge releases](https://github.com/conda-forge/miniforge/releases)
 
 Linux x86-64 安装示例如下，其他架构请替换安装包名。 / Example for Linux x86-64. Use the installer for your architecture.
 
@@ -406,7 +246,7 @@ gmx --version
 ```
 
 如需枚举配体的质子化与互变异构状态，在 `docktools` 环境安装 Molscrub，运行 `scrub.py --help` 和 `python -m pip check` 核对依赖。遇到平台或版本求解问题，按各项目安装文档选择兼容版本并记录。  
-For ligand protonation and tautomer enumeration, install Molscrub in `docktools`; run `scrub.py --help` and `python -m pip check`. If the solver cannot resolve a build for your platform, consult the project installation instructions and record the compatible versions you select. [Molscrub installation](https://github.com/forlilab/molscrub) · [Vina releases](https://github.com/forlilab/AutoDock-Vina/releases) · [conda-forge GROMACS](https://anaconda.org/conda-forge/gromacs)
+Install Molscrub in `docktools` to enumerate protomers and tautomers. Run `scrub.py --help` to confirm the command-line interface and `python -m pip check` to verify dependencies. If dependency resolution fails, consult upstream installation instructions and document compatible versions. [Molscrub installation](https://github.com/forlilab/molscrub) · [Vina releases](https://github.com/forlilab/AutoDock-Vina/releases) · [conda-forge GROMACS](https://anaconda.org/conda-forge/gromacs)
 
 ```bash
 conda activate docktools
@@ -418,7 +258,7 @@ scrub.py --help
 ### NVIDIA CUDA 对接环境 / NVIDIA CUDA docking environment
 
 在 Linux GPU 节点执行下面命令。Windows 用户先完成本节末尾的 WSL2 设置，再从 WSL Bash 执行同样命令。示例使用 conda-forge 的 Linux x86-64 Uni-Dock 1.2.0 包。先确认驱动能运行实际选用的 CUDA runtime。预编译包会安装所需的运行时依赖，`nvcc` 用于源码编译。  
-Run these commands on a Linux GPU node. On Windows, complete the WSL2 setup below, then run the same commands in WSL Bash. The example uses the conda-forge Linux x86-64 package for Uni-Dock 1.2.0. Check that the driver supports the selected CUDA runtime. The prebuilt package installs runtime dependencies, while `nvcc` is used for source builds. [Uni-Dock release notes](https://github.com/dptech-corp/Uni-Dock/releases) · [conda-forge builds](https://anaconda.org/conda-forge/unidock/files) · [NVIDIA CUDA compatibility](https://docs.nvidia.com/deploy/cuda-compatibility/latest/minor-version-compatibility.html)
+Run these commands on a Linux GPU node or in WSL2 after completing the Windows setup below. The example uses the conda-forge Linux x86-64 build of Uni-Dock 1.2.0. Verify that the NVIDIA driver supports the package's CUDA runtime. The package installs its runtime dependencies. Source builds use the `nvcc` compiler. [Uni-Dock release notes](https://github.com/dptech-corp/Uni-Dock/releases) · [conda-forge builds](https://anaconda.org/conda-forge/unidock/files) · [NVIDIA CUDA compatibility](https://docs.nvidia.com/deploy/cuda-compatibility/latest/minor-version-compatibility.html)
 
 ```bash
 nvidia-smi
@@ -430,12 +270,12 @@ conda list --show-channel-urls unidock
 ```
 
 `nvidia-smi` 标题中的 CUDA Version 表示驱动支持的 CUDA 版本，Toolkit 安装可另用 `nvcc --version` 核实。若解算或运行报 CUDA 兼容错误，请查看实际包的 CUDA 构建号和 GPU 节点驱动，选择两者兼容的版本。命令帮助可验证软件安装，步骤 02 的对接运行用于验证 GPU。  
-The CUDA Version in the `nvidia-smi` header describes driver support. Check a local Toolkit separately with `nvcc --version`. If environment resolution or execution reports a CUDA compatibility error, compare the actual package build with the node driver and choose compatible versions. Use the help command to check the installation and the docking run in step 02 to verify GPU execution. [NVIDIA nvidia-smi documentation](https://docs.nvidia.com/deploy/nvidia-smi/)
+The CUDA version reported by `nvidia-smi` indicates driver support. Use `nvcc --version` to query a locally installed toolkit. If installation or execution fails because of CUDA compatibility, match the package build to the node's NVIDIA driver. Verify installation with the help command and verify GPU execution with the reference docking case in step 02. [NVIDIA nvidia-smi documentation](https://docs.nvidia.com/deploy/nvidia-smi/)
 
 ### GROMACS CUDA 构建 / GROMACS CUDA build
 
 在允许使用 GPU 的计算节点检查 `nvidia-smi`。如需自行编译，选择 GROMACS 安装手册支持的 CUDA Toolkit、C/C++ 编译器和 CMake。使用上游源码压缩包解压后的目录执行以下命令。已有集群软件模块时，可直接加载并核对版本及 GPU 后端。  
-Check `nvidia-smi` on a GPU-enabled compute node. For a source build, use a CUDA Toolkit, compiler, and CMake supported by the GROMACS installation guide. Run the following commands from the extracted upstream source tree. If your cluster already provides a module, load it and verify its version and GPU backend. [GROMACS website](https://www.gromacs.org/) · [2026.3 build guide](https://manual.gromacs.org/2026.3/install-guide/index.html) · [GPU performance guide](https://manual.gromacs.org/documentation/current/user-guide/mdrun-performance.html)
+Verify GPU visibility with `nvidia-smi`. For a source build, select CUDA Toolkit, compiler, and CMake versions supported by the GROMACS installation guide, then run the commands from the extracted source tree. If a cluster module is available, load it and verify its GROMACS version and GPU backend. [GROMACS website](https://www.gromacs.org/) · [2026.3 build guide](https://manual.gromacs.org/2026.3/install-guide/index.html) · [GPU performance guide](https://manual.gromacs.org/documentation/current/user-guide/mdrun-performance.html)
 
 ```bash
 nvidia-smi
@@ -452,12 +292,12 @@ gmx --version
 ```
 
 切换到 MD 阶段时，选择一个 GROMACS 环境并用 `command -v gmx` 确认。集群上在调度器分配的计算节点运行，线程数以作业配额为准。  
-When transitioning to MD, choose one GROMACS installation and confirm it with `command -v gmx`. Use a scheduler allocation on shared clusters and match thread counts to the allocation. [Slurm documentation](https://slurm.schedmd.com/documentation.html)
+Before starting MD, verify which GROMACS executable is on `PATH` with `command -v gmx`. Run shared-cluster jobs inside a scheduler allocation and match the thread count to the allocated resources. [Slurm documentation](https://slurm.schedmd.com/documentation.html)
 
 ### Windows + WSL2
 
 从 PowerShell 检查 WSL。若尚未安装，可执行第二个代码块并按提示重启。此后在 Ubuntu 的 WSL Bash 中执行 Linux 步骤，项目与轨迹存放在 Linux 文件系统，例如 `~/docking-md-workshop`。  
-Check WSL from PowerShell. If it is missing, run the second block and restart if prompted. Run the Linux workflow from Ubuntu under WSL, and keep the project and trajectory files on the Linux filesystem, for example `~/docking-md-workshop`. [Microsoft WSL installation](https://learn.microsoft.com/windows/wsl/install) · [WSL filesystems](https://learn.microsoft.com/windows/wsl/filesystems)
+Check the WSL configuration in PowerShell. If WSL is absent, install it with the second command block and restart if prompted. Run the Linux commands in Ubuntu under WSL. Store the simulation project and trajectory files on the Linux filesystem, for example in `~/docking-md-workshop`. [Microsoft WSL installation](https://learn.microsoft.com/windows/wsl/install) · [WSL filesystems](https://learn.microsoft.com/windows/wsl/filesystems)
 
 ```powershell
 wsl --status
@@ -471,10 +311,15 @@ wsl --install -d Ubuntu
 在 **Windows 宿主机**安装支持 WSL 的 NVIDIA 驱动，并在 WSL Bash 运行 `nvidia-smi`。通过后可按上面的命令装 Uni-Dock CUDA，或选择 CPU 路线。需要源码编译时按 NVIDIA 指引安装 WSL Toolkit，选用不捆绑 Linux 显卡驱动的包。原生 Windows 版 Vina 1.2.7 可走步骤 04A，CUDA 对接走步骤 04B。  
 Install the WSL-capable NVIDIA driver on the **Windows host** and check `nvidia-smi` from WSL Bash. Then install Uni-Dock CUDA as shown above or choose the CPU route. For a source build, follow NVIDIA's WSL instructions and select a Toolkit package without a bundled Linux display driver. Native Windows Vina 1.2.7 is covered in step 04A and CUDA docking in step 04B. [NVIDIA CUDA on WSL](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) · [Vina batch syntax on Windows](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
 
-## 02. 用同一公开案例验收 CPU 和 GPU / Validate CPU and GPU on the same example
+<a name="benchmark"></a>
+
+## 02. 参考案例重对接 / Reference redocking benchmark
 
 先用 Scripps 官方示例复跑 c-Abl 与伊马替尼（PDB **1IEP**）。从官方示例目录下载 `1iep_receptorH.pdb` 和 `1iep_ligand.sdf` 到一个新目录，在该目录运行以下命令。此处的盒坐标只适用于该示例坐标系。  
-Start with the Scripps example of imatinib docked to c-Abl (PDB **1IEP**). Download `1iep_receptorH.pdb` and `1iep_ligand.sdf` from the upstream example into a fresh directory and run the commands there. The box coordinates apply specifically to the example's coordinate frame. [Official walkthrough](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [Upstream example files](https://github.com/forlilab/AutoDock-Vina/tree/develop/example/basic_docking) · [RCSB 1IEP](https://www.rcsb.org/structure/1IEP)
+Use the Scripps c-Abl–imatinib example (PDB **1IEP**) as a reference redocking benchmark. Download `1iep_receptorH.pdb` and `1iep_ligand.sdf` from the upstream example into a new directory and run the commands there. The search box is defined in the example receptor's coordinate frame. [Official walkthrough](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [Upstream example files](https://github.com/forlilab/AutoDock-Vina/tree/develop/example/basic_docking) · [RCSB 1IEP](https://www.rcsb.org/structure/1IEP)
+
+**结构来源与验证依据 / Structure provenance and validation.** 记录 1IEP 的结构 DOI 和参考配体实例。报告重对接 RMSD 时，注明原子匹配与对称性处理方法。  
+Record the structure DOI and reference ligand instance. Report the atom correspondence and symmetry treatment used for redocking RMSD. [1IEP structure DOI](https://doi.org/10.2210/pdb1IEP/pdb) · [DockRMSD methodology](https://doi.org/10.1186/s13321-019-0362-7)
 
 ```bash
 conda activate docktools
@@ -505,13 +350,13 @@ find 1iep_gpu -maxdepth 1 -type f -name '*.pdbqt' -print
 ```
 
 用步骤 05 的检查和导出方式处理 GPU 输出。对接命令成功退出后，用位姿文件、日志和 GPU 观测共同核对。  
-Use the checks and export procedure in step 05 for the GPU output. After a successful exit, verify the pose file, run log, and GPU activity.
+For the GPU run, apply the pose export and verification procedure in step 05. Confirm successful completion using the pose file, run log, and observed GPU activity.
 
 **验收 / Check.** 确认 PDBQT 有 Vina 分数和姿态，SDF 可以读取。分别用公开参考结果检查 CPU 和 GPU 的位姿与关键接触。正式做共晶重对接时，先把参考与对接结构置于同一受体坐标系，比较带对称校正的重原子 RMSD，保持配体在各自原位。约 2 Å 是常用参考值。可另用 BioExcel 的公开案例练习 MD 复合物建系。  
-Confirm that the PDBQT contains scores and poses and that the SDF opens. Compare the CPU and GPU poses and key contacts separately with the upstream example. For quantitative redocking, use a shared receptor frame and calculate symmetry-corrected ligand heavy-atom RMSD with the poses kept in place. About 2 Å is a common reference. For a separate MD setup example, use the public BioExcel protein–ligand tutorial. [Scripps expected results](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#expected-results) · [BioExcel complex setup](https://github.com/bioexcel/biobb_wf_protein-complex_md_setup)
+Confirm that the PDBQT contains pose and score records and that the recovered SDF is readable. Evaluate each engine's pose recovery and key contacts against the co-crystal reference. Calculate symmetry-aware ligand heavy-atom root-mean-square deviation (RMSD) in a common receptor frame without independently fitting the ligands. Approximately 2 Å is a conventional reference for pose recovery. A separate BioExcel tutorial covers MD complex setup. [Scripps expected results](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#expected-results) · [BioExcel complex setup](https://github.com/bioexcel/biobb_wf_protein-complex_md_setup)
 
 **定量重对接 / Quantitative redocking.** 在 RCSB 1IEP 的 **Small Molecules → STI → Instance Coordinates** 下载对应链的 SDF，保存为 `1iep_crystal_ligand.sdf`。在结构查看器里确认其链/构象对应受体，并把两者置于同一受体坐标系。先核对化学身份，再用 Open Babel 的 `obrms` 对每个对接姿态计算重原子 RMSD（Å）。`obrms` 按重原子连接匹配并考虑等价映射，`-m` 会对配体再拟合，此处省略该选项。  
-In RCSB 1IEP, select **Small Molecules → STI → Instance Coordinates** and download the SDF for the matching chain and save it as `1iep_crystal_ligand.sdf`. Check the chain or conformer and shared receptor frame in a structure viewer. Verify chemical identity before using Open Babel's `obrms` to calculate heavy-atom RMSD (Å) for each docked pose. `obrms` searches equivalent mappings by heavy-atom connectivity. Omit `-m` to preserve each pose in the receptor frame. [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
+In the RCSB 1IEP entry, download the STI instance coordinates as SDF for the matching chain and save them as `1iep_crystal_ligand.sdf`. Verify the ligand conformer and common receptor frame in a structure viewer. After confirming chemical identity, use Open Babel `obrms` to calculate per-pose heavy-atom RMSD in Å. It searches equivalent correspondences by heavy-atom connectivity. Leave `-m` unset to preserve each pose in the receptor frame. [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
 
 ```bash
 conda activate docktools
@@ -521,16 +366,18 @@ obrms 1iep_crystal_ligand.sdf 1iep_docked.sdf | tee 1iep_cpu_redocking_rmsd.txt
 ```
 
 GPU 同样比较。把按步骤 05 恢复的 1IEP GPU 多位姿 SDF 保存为 `1iep_gpu_docked.sdf`，然后执行下列命令。记录排名第一的位姿与前若干位姿的排名、RMSD 与关键接触，便于区分采样到参考姿态与评分将其排在首位。  
-For the GPU run, save the recovered 1IEP multi-pose SDF from step 05 as `1iep_gpu_docked.sdf` and run the following. Report rank, RMSD, and key contacts for the top pose and several leading poses to distinguish sampling from ranking performance.
+Export the GPU poses to `1iep_gpu_docked.sdf` using step 05. Compare the top-ranked pose and other leading poses by RMSD and key contacts. Record separately whether the search recovered the reference pose and whether the scoring function ranked it first.
 
 ```bash
 obabel 1iep_gpu_docked.sdf -ocan
 obrms 1iep_crystal_ligand.sdf 1iep_gpu_docked.sdf | tee 1iep_gpu_redocking_rmsd.txt
 ```
 
+[返回目录 / Back to contents](#contents)
+
 <a name="docking"></a>
 
-## 03. 准备自己的结构 / Prepare your own receptor and ligands
+## 03. 受体与配体制备 / Receptor and ligand preparation
 
 ```bash
 mkdir -p "$HOME/docking-md-workshop"
@@ -548,10 +395,10 @@ mkdir -p input ligands/pdbqt dock qc md
 来源与命令参考 / Structure databases and setup docs · [RCSB PDB](https://www.rcsb.org/) · [PubChem](https://pubchem.ncbi.nlm.nih.gov/) · [Meeko receptor options](https://meeko.readthedocs.io/en/develop/rec_cli_options.html) · [Molscrub CLI](https://molscrub.readthedocs.io/en/latest/cli.html)
 
 **受体分两份处理 / Receptor files for docking and MD.** 从同一份源结构确定链、altloc、缺失部分、口袋水和所需辅助成分。可用开源 PyMOL 查看和选择链，保存经审核的 `input/protein.pdb`。为 `input/receptorH.pdb` 确定氢与质子化状态后，用 Meeko 制备受体 PDBQT。已有 AutoDockTools 的读者可用它辅助加氢、查看旧 GPF 或准备对接受体，但应逐项复核化学状态和盒范围。MD 仍从经审核的蛋白 PDB 用 `pdb2gmx` 生成拓扑。  
-Use the same source structure to review chains, alternate locations, missing parts, pocket waters, and required components. Open-source PyMOL can inspect the structure and select chains for the reviewed `input/protein.pdb`. Assign hydrogens and protonation for `input/receptorH.pdb`, then prepare receptor PDBQT with Meeko. AutoDockTools can assist with hydrogens, legacy GPF inspection, or preparation of a docking receptor. Review residue chemistry and the box before use. For MD, use `pdb2gmx` on the reviewed protein PDB. [Meeko receptor preparation](https://meeko.readthedocs.io/en/develop/rec_cli_options.html) · [Scripps AutoDock Suite](https://ccsb.scripps.edu/autodocksuite/)
+Review chain identity, alternate locations, missing atoms or residues, and any essential solvent molecules or cofactors in the source structure. Open-source PyMOL can be used to curate `input/protein.pdb`. Review the hydrogen and protonation model in `input/receptorH.pdb` before generating receptor PDBQT with Meeko. AutoDockTools can assist with legacy preparation and AutoGrid parameter files (GPF). Use the prepared protein PDB for MD topology generation with `pdb2gmx`. [Meeko receptor preparation](https://meeko.readthedocs.io/en/develop/rec_cli_options.html) · [Scripps AutoDock Suite](https://ccsb.scripps.edu/autodocksuite/)
 
 下例从 Molscrub 输出中选第 1 条作为候选。按实际审核结果替换记录号。若已有确认过的带显式氢、单记录 3D SDF，可直接将其保存为 `ligands/state001.sdf`。为不同化学状态使用独立 ID。  
-The example extracts record 1 from a Molscrub output. Use the record number established during review. If an approved single-record 3D SDF already includes explicit hydrogens, save it directly as `ligands/state001.sdf`. Assign a distinct ID to each chemical state.
+The example selects record 1 from the Molscrub output. Substitute the record number established during chemical review. You may supply a vetted single-record 3D SDF with explicit hydrogens as `ligands/state001.sdf`. Assign a distinct identifier to each ligand microstate.
 
 ```bash
 conda activate docktools
@@ -561,7 +408,7 @@ obabel ligands/candidates.sdf -f 1 -l 1 -O ligands/state001.sdf
 ```
 
 **用 RDKit 检查候选 / Review the candidate with RDKit.** 命令块在已激活的 `docktools` 中执行。进入 Python 后读入所选 SDF，核对手性、整数净电荷、显式氢和 3D 标记。若读取失败或结构与预期不符，回到候选选择。退出 Python 后再调用 Meeko。  
-With `docktools` active, enter Python and read the selected SDF. Review stereochemistry, integer net charge, explicit hydrogens, and the 3D flag. If the record fails to load or its chemistry is unexpected, revisit candidate selection. Exit Python before running Meeko. [RDKit Python guide](https://www.rdkit.org/docs/GettingStartedInPython.html)
+From the `docktools` environment, load the selected SDF in Python and verify stereochemistry, integer net charge, explicit hydrogen count, and the 3D conformer flag. Resolve any parsing or chemical-identity discrepancy before calling Meeko. [RDKit Python guide](https://www.rdkit.org/docs/GettingStartedInPython.html)
 
 ```bash
 python
@@ -585,7 +432,7 @@ sha256sum input/* > qc/input_sha256.txt
 ```
 
 将下列六项保存为 `dock/box.txt`，把示例值替换为自己测定的中心与尺寸。旧 AutoGrid 参数中的网格间隔数乘间距才得到 Å。对于无已知口袋的结构，可另建探索性搜索盒并检查采样收敛和口袋证据。  
-Save the six fields to `dock/box.txt` and replace the example numbers with measured coordinates and dimensions. Convert legacy AutoGrid interval counts to Å by multiplying by grid spacing. For structures without a known site, use a separate exploratory box and evaluate sampling and pocket evidence.
+Write the six fields to `dock/box.txt` and substitute the actual center and edge lengths. Convert legacy AutoGrid interval counts to Å using the grid spacing. If the binding site is unknown, use a separate exploratory box and evaluate sampling and pocket plausibility.
 
 ```ini
 center_x = 15.190
@@ -597,20 +444,25 @@ size_z = 20.0
 ```
 
 **验收 / Check.** 核对 SDF 记录、显式氢、手性、键级和净电荷。配体 PDBQT 应保留 Meeko 写入的化学映射信息。受体文件、参考配体和搜索盒应在同一坐标系中。  
-Confirm the SDF record count, explicit hydrogens, stereochemistry, bond orders, and net charge. The ligand PDBQT should retain Meeko's chemical mapping metadata. Verify that the receptor, reference ligand, and box share the same coordinate frame. [Meeko documentation](https://meeko.readthedocs.io/) · [Open Babel CLI](https://openbabel.org/docs/Command-line_tools/babel.html)
+Verify the SDF record count, explicit hydrogens, stereochemistry, bond orders, and net charge. Check that the ligand PDBQT retains the Meeko mapping metadata and that the receptor, reference ligand, and search box use the same coordinate frame. [Meeko documentation](https://meeko.readthedocs.io/) · [Open Babel CLI](https://openbabel.org/docs/Command-line_tools/babel.html)
+
+**结构与化学核对 / Structure and chemistry references.** 实验结构使用 wwPDB 验证报告复核质量，配体标识可用化学组分字典核对。  
+Use wwPDB validation reports to review deposited experimental structures and the Chemical Component Dictionary to check ligand identifiers. [wwPDB validation reports](https://www.wwpdb.org/validation/validation-reports) · [Chemical Component Dictionary](https://www.wwpdb.org/data/ccd)
 
 **局部筛选、盲对接和复筛 / Focused screening, blind docking, and follow-up.** 有共晶或可靠位点时，优先用局部盒并用重对接验收。无已知口袋时，用单独的探索性盒（如 `dock/box_blind.txt`）记录范围、种子和搜索力度，检查候选是否集中在有结构依据的口袋，再为候选口袋新建局部盒和输出目录进行复筛。保留不同盒的独立结果。旧 GPF 可用 `grep -E '^(npts|spacing|gridcenter)[[:space:]]' receptor.gpf` 查字段。例如 `npts 60 60 60` 和 `spacing 0.375` 对应三边各 22.5 Å。若 `gridcenter` 为 `auto`，应重新核实真实中心再填写。  
-Use a focused box and validate it by redocking where a co-crystal or well-supported site is available. With no known pocket, use a separate exploratory box such as `dock/box_blind.txt` and record its coverage, seeds, and search effort. Inspect clusters for structurally plausible pockets, then create new focused boxes and output directories for follow-up docking. Keep results from different boxes separately. In a legacy GPF, inspect `npts`, `spacing`, and `gridcenter`. For example, `npts 60 60 60` at `spacing 0.375` gives three edges of 22.5 Å. Resolve `gridcenter auto` to verified coordinates before entering a center. [Vina FAQ](https://autodock-vina.readthedocs.io/en/latest/faq.html)
+Use a focused box when structural evidence identifies the binding site. Validate the protocol by redocking when a co-crystal pose is available. For exploratory docking, use a separate file such as `dock/box_blind.txt` and record the coverage, seeds, and search settings. Inspect pose clusters for structurally plausible pockets, then use separate focused boxes and output directories for follow-up. In a legacy GPF, `npts 60 60 60` with `spacing 0.375` defines three 22.5 Å edges. Resolve `gridcenter auto` to verified coordinates before writing the Vina configuration. [Vina FAQ](https://autodock-vina.readthedocs.io/en/latest/faq.html)
 
-## 04. CPU 与 GPU 批量对接 / Batch docking on CPU and GPU
+<a name="batch-docking"></a>
+
+## 04. CPU 与 CUDA 批量对接 / Batch docking on CPU and CUDA
 
 两条路线共用步骤 03 的受体 PDBQT、配体 PDBQT 和搜索盒。为每个筛选条件保留独立目录。可逐个调用 Meeko 生成配体 PDBQT，或用 `--multimol_outdir` 处理已审核的多记录 SDF。保留候选 ID 与原始 SDF 的对应表，并检查重名和漏项。  
-Both routes use the receptor PDBQT, ligand PDBQT files, and search box from step 03. Give each screening run a separate output directory. Prepare ligands individually or use Meeko's `--multimol_outdir` for a reviewed multi-record SDF. Keep a manifest linking ligand IDs to original SDF records, and check for duplicates and missing files. [Meeko ligand CLI](https://meeko.readthedocs.io/en/develop/lig_cli_options.html)
+The CPU and CUDA workflows use the same receptor PDBQT, ligand PDBQT files, and search box from step 03. Use a separate output directory for each screen. Prepare ligands individually or pass a reviewed multi-record SDF to Meeko with `--multimol_outdir`. Track the mapping between ligand IDs and source SDF records, including duplicate IDs and failed preparations. [Meeko ligand CLI](https://meeko.readthedocs.io/en/develop/lig_cli_options.html)
 
 ### A. CPU · AutoDock Vina
 
 先跑一个已审核配体，核对日志和位姿后再开始批量筛选。  
-Run one reviewed ligand first and inspect its log and poses before launching the batch.
+Run a single curated ligand and inspect its output and log before launching the batch.
 
 ```bash
 conda activate docktools
@@ -683,7 +535,7 @@ tail -20 dock/cpu_batch_win_202601/vina.log
 ### B. NVIDIA GPU · Uni-Dock CUDA
 
 在 Linux 或 WSL2 的项目根目录执行。首次用 `--gpu_batch` 测一个配体。独立终端运行 `nvidia-smi -l 1` 可观察稍长测试的 GPU 使用情况。  
-Run from the project root in Linux or WSL2. Start with one ligand using `--gpu_batch`. For a longer test, observe GPU activity with `nvidia-smi -l 1` in a second terminal. [Uni-Dock CLI](https://github.com/dptech-corp/Uni-Dock/tree/main/unidock)
+Run from the Linux or WSL2 project root. Verify a single ligand with `--gpu_batch` first. During a longer run, monitor GPU activity with `nvidia-smi -l 1` in a second terminal. [Uni-Dock CLI](https://github.com/dptech-corp/Uni-Dock/tree/main/unidock)
 
 ```bash
 conda activate dockgpu
@@ -697,7 +549,7 @@ find dock/gpu_single_202601 -maxdepth 1 -type f -name '*.pdbqt' -print
 ```
 
 批量任务用 `--ligand_index` 读取清单。以下清单每行一个相对路径，使用无空格且唯一的配体文件名。首轮用几十个代表性配体检查资源和输出。若用约 4 GB 显存的 RTX 4060 Laptop，可先取 32 个配体测一批，按实际显存与耗时调整。  
-Batch runs use `--ligand_index` with a manifest. The example uses one relative path per line and unique ligand filenames without spaces. Test a few dozen representative compounds first. On an RTX 4060 Laptop with around 4 GB of VRAM, 32 ligands are a practical starting batch to measure, with the size adjusted according to memory use and runtime.
+Supply a manifest via `--ligand_index`. Use one relative path per line and unique ligand filenames without spaces. Benchmark a small representative subset first. On an RTX 4060 Laptop configuration with about 4 GB of VRAM, 32 ligands is an example starting batch. Adjust the size using measured memory use and throughput.
 
 ```bash
 mkdir dock/gpu_batch_202601
@@ -723,18 +575,18 @@ tail -25 dock/gpu_batch_202601/unidock.log
 `fast`、`balance`、`detail` 调整 Uni-Dock 的搜索力度。复筛可换种子或提高搜索力度，并使用新的输出目录。每个文件需有有效姿态和评分记录。按候选 ID 对照清单与输出，查日志中的 CUDA 或解析错误，单独记录未完成项。  
 `fast`, `balance`, and `detail` control Uni-Dock's search effort. For follow-up docking, change the seed or search effort and use a new output directory. Verify that files contain poses and scores. Reconcile outputs against manifest IDs, inspect logs for CUDA or parsing errors, and record incomplete jobs. [Uni-Dock modes and batch manifest](https://github.com/dptech-corp/Uni-Dock/blob/main/unidock/README.md)
 
-### 两条路线怎么比较 / How to compare both routes
+### 对接引擎基准比较 / Benchmarking the docking engines
 
 用相同输入、口袋和配体清单，记录引擎版本、评分函数、搜索参数、种子、CPU 线程或 GPU 型号、实耗时、成功配体数和峰值显存。用成功配体数除以墙钟时间计算吞吐。分别检查已知配体的重对接位姿、关键接触、候选排名和重复种子一致性。CPU 与 CUDA 引擎各自的搜索策略和参数定义有差异，原始分数保留在各自结果表中。  
-Use the same inputs, pocket, and ligand manifest. Record engine versions, scoring functions, search settings, seeds, CPU threads or GPU model, wall time, completed ligand counts, and peak VRAM. Compute throughput as completed ligands per wall-clock time. Check native-pose recovery, key contacts, candidate rankings, and seed repeatability for each engine. Search strategies and parameter definitions differ between the CPU and CUDA engines, so retain the raw scores in their respective result tables.
+Use identical receptor, search box, and ligand inputs. Document engine versions, scoring functions, search settings, seeds, device, thread count, elapsed wall time, successful ligand count, and peak VRAM where applicable. Report throughput as successful ligands per unit of wall time. Compare native-pose recovery, key contacts, ranking, and repeatability across seeds. Retain separate score tables for the two engines.
 
 **其他 GPU 实现 / Other GPU engines.** Vina-GPU 2.1 可在上游支持的 Windows 或 Linux 环境使用 OpenCL，仓库提供自带示例，批量输入输出选项为 `--ligand_directory` 与 `--output_directory`。NVIDIA 环境的构建说明会用到 CUDA Toolkit 路径，其搜索内核用 OpenCL 执行。Scripps 的 AutoDock-GPU 支持 CUDA/OpenCL，使用 AutoDock4 路线和相应的亲和力图。  
 Vina-GPU 2.1 provides OpenCL docking on the upstream-supported Windows or Linux setups. Its repository includes a sample and documents `--ligand_directory` and `--output_directory` for batch runs. Its NVIDIA build instructions reference CUDA Toolkit paths, while its search kernels use OpenCL. Scripps AutoDock-GPU supports CUDA/OpenCL and uses the AutoDock4 protocol with affinity maps. [Vina-GPU 2.1](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1) · [Scripps AutoDock-GPU](https://github.com/forlilab/AutoDock-GPU)
 
-### 候选复筛与记录 / Follow-up docking and records
+### 候选复筛与位姿记录 / Follow-up docking and pose selection
 
 用同一化学状态、受体坐标和局部盒为候选重复对接。示例对 CPU 路线再用 `202602`、`202603` 重复步骤 04A 的单配体命令，替换 `--seed`、日志和目录。CUDA 路线可在 `balance` 下换种子检验稳定性，再用 `detail` 检查增加搜索力度后的结果。逐个位姿看口袋位置、空间冲突和参考接触，按可解释的重原子位姿相似性分组；记录分组依据及进入 MD 的具体位姿。保留以下字段，另列失败项。  
-Redock shortlisted candidates with the same chemical state, receptor frame, and focused box. For example, repeat the step 04A single-ligand command with CPU seeds `202602` and `202603`, changing `--seed`, the log, and the output directory. For CUDA, repeat with different seeds in `balance` mode, then use `detail` to assess the effect of more search effort. Inspect pocket placement, clashes, and reference contacts, and group poses by a documented heavy-atom similarity criterion. Record the precise pose selected for MD and track failed jobs separately.
+Redock shortlisted candidates with the same microstate, receptor frame, and focused search box. For the CPU example, repeat step 04A with seeds `202602` and `202603` and distinct logs and output directories. For Uni-Dock, repeat across seeds in `balance` mode, then assess increased sampling with `detail`. Group poses using a documented heavy-atom criterion and inspect pocket placement, steric clashes, and reference contacts. Record the selected pose and any failed runs.
 
 | 记录 / Record | 字段 / Fields |
 | --- | --- |
@@ -744,10 +596,13 @@ Redock shortlisted candidates with the same chemical state, receptor frame, and 
 
 <a name="pose-handoff"></a>
 
-## 05. 对接到 MD 的两条交接路线 / Two routes from docking to MD
+## 05. 对接位姿的两条 MD 交接路线 / Docked-pose transfer to molecular dynamics
 
 两条路线都交付 `lig_pose.sdf`。原始结构提供键级、形式电荷、质子化状态和手性，所选对接位姿提供原位重原子坐标。根据手头的结构文件选择恢复工具，再按需要选择对接设备。  
-Both routes produce `lig_pose.sdf`. The source structure supplies bond orders, formal charge, protonation, and stereochemistry. The selected docked pose supplies the in-place heavy-atom coordinates. Choose the recovery tools from the available files and select the docking device independently.
+Both workflows produce `lig_pose.sdf`. The source SDF defines the molecular graph, formal charge, protonation state, and stereochemistry. The selected docking pose supplies the heavy-atom coordinates in the original receptor frame. Choose the recovery method from the available metadata and source structure. Docking hardware is an independent choice.
+
+**交接依据 / Pose-transfer references.** Meeko 的软件论文说明 PDBQT 与分子图的互操作，Open Babel 文档提供后续格式转换命令。  
+See the Meeko paper for PDBQT interoperability and the Open Babel manual for subsequent format conversion. [Meeko paper](https://doi.org/10.1021/acs.jcim.5c02271) · [Open Babel CLI](https://openbabel.org/docs/Command-line_tools/babel.html) · [Open Babel paper](https://doi.org/10.1186/1758-2946-3-33)
 
 | 路线 / Route | 何时使用 / When to use it | 如何恢复 / How to recover |
 | --- | --- | --- |
@@ -755,7 +610,7 @@ Both routes produce `lig_pose.sdf`. The source structure supplies bond orders, f
 | **[B · 旧 ADT + SDF 模板 / Legacy ADT with SDF template](#legacy-adt-handoff)** | 已有旧 ADT 位姿，并保存了同一化学状态的原始 SDF。 / A legacy ADT pose and the original SDF for the same chemical state are available. | 选定 PDBQT MODEL → 核对一一映射 → RDKit 回填重原子坐标、补氢及核对 → SDF。 / Select the PDBQT MODEL, verify the atom map, then use RDKit to transfer coordinates, add hydrogens, check the pose and write SDF. |
 
 保留原始 SDF 和所选运行的输出。每套力场、姿态和独立重复各用一个目录。以下示例选 AMBER + CPU 位姿。如选择 CHARMM，把 `ff_family=amber` 改为 `ff_family=charmm`。使用 GPU 位姿时，从步骤 04B 输出目录查找该配体的 PDBQT，把 `pose_file` 改成查到的实际路径。  
-Keep the source SDF and the selected run's output. Use separate directories for each force field, pose, and replicate. This example selects AMBER and the CPU pose. Set `ff_family=charmm` for CHARMM. To use a GPU pose, find its PDBQT in step 04B's output directory and set `pose_file` to that path.
+Archive the original ligand SDF and docking output in separate work directories for each force field, pose, and replicate. The example uses AMBER and a pose from the CPU run. Set `ff_family=charmm` for CHARMM, or set `pose_file` to the selected PDBQT from step 04B for a CUDA-generated pose.
 
 ```bash
 conda activate docktools
@@ -771,10 +626,10 @@ test -s "$pose_file" &&
 cd "$run_dir"
 ```
 
-### A. 新项目走 Meeko 映射 / New jobs with Meeko mappings
+### A. 保留 Meeko 映射 / Pose recovery from Meeko metadata
 
 对接前归档原始 SDF 及 Meeko 制备的配体 PDBQT。对接后检查输出的 `REMARK SMILES`、`REMARK SMILES IDX`，并核对 `REMARK H PARENT` 记录（如有）。  
-Archive the original SDF and Meeko-prepared ligand PDBQT before docking. Check the output for `REMARK SMILES`, `REMARK SMILES IDX`, and `REMARK H PARENT` where present. [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
+Archive the original SDF and Meeko-prepared ligand PDBQT. In the docking output, verify `REMARK SMILES` and `REMARK SMILES IDX`, and check `REMARK H PARENT` where present. [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
 
 ```bash
 awk '/^REMARK SMILES / && $3 != "IDX" {print; found=1; exit}
@@ -784,7 +639,7 @@ grep -m 1 '^REMARK H PARENT ' selected_run.pdbqt || true
 ```
 
 映射检查通过后导出。对接输出没有这些记录时，旧 ADT 结果按路线 B 处理。若需要重新对接，为新位姿单独记录引擎、参数和筛选依据。  
-Export after the mapping checks pass. Use route B for legacy ADT results with no Meeko metadata. When redocking, record the engine, settings, and selection evidence for the new poses separately.
+Export once the mapping checks pass. For legacy ADT output without Meeko metadata, follow route B. For any new docking run, record its engine, search settings, and pose-selection rationale separately.
 
 ```bash
 mk_export.py selected_run.pdbqt -s docked_poses.sdf
@@ -806,7 +661,7 @@ find dock/gpu_sdfprep_202601 -maxdepth 1 -type f -name '*.sdf' -print
 ```
 
 确认输出是所选的单一化学状态，再运行下面命令。检查输出只有一个配体的 SDF 文件（其内可以有多个位姿），再复制到当前重复目录。  
-Verify that the prepared output contains the chosen chemical state before running the next commands. Confirm there is one ligand output file, which may contain multiple poses, before copying it into the replicate directory.
+Check that the prepared ligand has the intended microstate. Before copying the results, verify that there is one SDF file for this ligand. A single file may contain multiple pose records.
 
 ```bash
 unidock --receptor dock/receptor.pdbqt --gpu_batch dock/gpu_sdfprep_202601/*.sdf \
@@ -824,7 +679,7 @@ obabel docked_poses.sdf -ocan
 ```
 
 核对 SDF 记录、位姿来源和评分后再提取。使用 PDBQT 转出的 SDF 时，核对 SDF 记录与 PDBQT MODEL 的对应关系。下面以第 1 条为示例。  
-Check the SDF record, pose provenance, and score before extraction. If the SDF was converted from PDBQT, check its correspondence with the PDBQT MODEL. This example uses record 1.
+Before extracting a pose, verify its provenance and score. If it came from a PDBQT export, confirm the correspondence between its SDF record and PDBQT `MODEL`. The example selects record 1.
 
 ```bash
 obabel docked_poses.sdf -f 1 -l 1 -O lig_pose.sdf
@@ -834,10 +689,10 @@ obabel lig_pose.sdf -ocan
 
 <a name="legacy-adt-handoff"></a>
 
-### B. 旧 ADT 结果用原始 SDF 模板恢复 / Recover a legacy ADT pose with the original SDF
+### B. 原始 SDF 模板恢复旧 ADT 位姿 / Template-based recovery of legacy ADT poses
 
 把同一化学状态的原始 SDF 保存为 `state_original.sdf`，把旧 Vina 输出保存为 `selected_run.pdbqt`，放在本步骤的独立目录。利用原始 ADT 输入、原子名和制备记录核对一一映射，逐项确认重原子元素、连接和序号。仅凭元素相同或行顺序相同无法确认对应关系。模板、映射或手性无法确认时，回到 A 重新准备并对接。  
-Save the original SDF for the same chemical state as `state_original.sdf` and the legacy Vina output as `selected_run.pdbqt` in this run directory. Use the original ADT input, atom names, and preparation records to verify one-to-one mapping, checking heavy-atom elements, connectivity, and identifiers. Element identity or file order alone cannot establish correspondence. If the template, mapping, or stereochemistry is uncertain, prepare and dock again with route A.
+Save the original SDF for the same microstate as `state_original.sdf` and the legacy Vina output as `selected_run.pdbqt`. Establish a one-to-one atom map from the preparation records, original ADT input, and atom identities. Verify heavy-atom elements, connectivity, and identifiers together. If the original chemical template, atom mapping, or stereochemistry remains uncertain, prepare a new input and redock with route A.
 
 下面以 MODEL 1 为例，按实际选择更改。输出各列是 PDBQT serial、三维坐标（Å）和 AutoDock 类型。如果输入是 AutoDock4 `.dlg`，先在对应工具中提取所选位姿。如果单一位姿没有 MODEL 标记，先确认文件只含所选位姿，再单独提取。  
 This example uses MODEL 1. Change it to the verified model. The columns are PDBQT serial, coordinates (Å), and AutoDock atom type. For an AutoDock4 `.dlg`, extract the selected pose first. If a single pose has no MODEL record, confirm its contents and extract that structure explicitly.
@@ -871,7 +726,7 @@ RDKIT
 ```
 
 映射审核后运行。本例适用于常规有机小分子。RDKit 从模板复制化学图，回填对接重原子坐标后补氢。从三维构象重新感知的立体化学要与模板一致。遇到断言报错时暂停并复核。  
-Run after verifying the mapping. This example covers ordinary organic ligands. RDKit copies the molecular graph, transfers the docked heavy-atom coordinates, and adds hydrogens. Stereochemistry assigned from the recovered geometry must match the template. Stop and investigate a failed assertion. [RDKit stereochemistry API](https://www.rdkit.org/docs/source/rdkit.Chem.rdmolops.html#rdkit.Chem.rdmolops.AssignStereochemistryFrom3D)
+Run the following commands after reviewing the atom map. For the organic ligands covered here, RDKit retains the template's molecular graph, inserts the docked heavy-atom coordinates, and adds hydrogens. Resolve any disagreement between the template and stereochemistry assigned from the recovered 3D coordinates before continuing. [RDKit stereochemistry API](https://www.rdkit.org/docs/source/rdkit.Chem.rdmolops.html#rdkit.Chem.rdmolops.AssignStereochemistryFrom3D)
 
 ```bash
 python - <<'RDKIT'
@@ -918,10 +773,10 @@ RDKIT
 `0.02 Å` 是这里校验文件写出与原位坐标的工程容差。归档原始 SDF、ADT 输入、MODEL 号和映射表，校验通过后再用 `lig_pose.sdf`。  
 `0.02 Å` is the file-transfer tolerance used here. Archive the source SDF, ADT input, model number, and atom map. Use `lig_pose.sdf` after the checks pass.
 
-### 两条路线共同验收 / Final checks for both routes
+### 位姿与化学结构验收 / Pose and chemical-identity validation
 
 在已激活的 `docktools` 环境进入 Python，对照原始化学状态和恢复位姿。两条输出分别检查规范异构 SMILES 和净电荷。为比较化学图，RDKit 在内存中移除普通显式氢；用于参数化的原 SDF 文件保持显式氢与原位坐标。结果不同或分子读入失败时，先查明原因。  
-In the active `docktools` environment, open Python and compare the original state against the recovered pose. The two checks compare isomeric canonical SMILES and net charge. RDKit removes ordinary explicit hydrogens in memory for this comparison. Parameterization still uses the SDF with explicit hydrogens and in-place coordinates. Investigate differences or failed reads.
+In `docktools`, load the source and recovered SDF records in Python. Compare their canonical isomeric SMILES and formal charges. RDKit removes ordinary explicit hydrogens in memory for this comparison. The SDF used for parameterization retains explicit hydrogens and in-place coordinates. Resolve parsing or identity discrepancies before proceeding.
 
 ```bash
 python
@@ -938,11 +793,13 @@ exit()
 ```
 
 **验收 / Check.** 用原始 SDF 与输出核对分子图、键级、手性和整数净电荷。逐原子核对入选 MODEL 与 SDF 的重原子坐标。叠加时保留绝对坐标。原始位姿或化学身份无法确认时，回到路线 A 重新生成候选。通过后进入第 06 节参数化。  
-Compare bond orders, molecular graph, stereochemistry, and integer net charge with the source SDF. Check the mapped heavy atoms against the selected MODEL in their original absolute coordinates. If the pose or chemical identity cannot be verified, regenerate candidates with route A. Proceed to parameterization in step 06 after these checks pass. [Meeko export in the Vina tutorial](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf)
+Check the recovered molecular graph, bond orders, stereochemistry, and integer net charge against the source SDF. Compare mapped heavy-atom coordinates in the original receptor frame for the selected `MODEL`. Regenerate candidates with route A if the pose or chemical identity cannot be established. Proceed to ligand parameterization once these checks pass. [Meeko export in the Vina tutorial](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf)
+
+[返回目录 / Back to contents](#contents)
 
 <a name="topology"></a>
 
-## 06. 选择力场并参数化配体 / Choose force fields and parameterize the ligand
+## 06. 力场选择与配体参数化 / Force-field selection and ligand parameterization
 
 | 路线 / Route | 蛋白力场 / Protein force field | 小分子力场与电荷 / Ligand force field and charges | 水和非键合参数 / Water and nonbonded settings |
 | --- | --- | --- | --- |
@@ -950,7 +807,7 @@ Compare bond orders, molecular graph, stereochemistry, and integer net charge wi
 | B · CHARMM | MacKerell Lab GROMACS 端口的 CHARMM36m / CHARMM36m in the MacKerell Lab GROMACS port | 版本匹配的 CGenFF 类型、电荷和键合参数 / Version-matched CGenFF types, charges, and bonded parameters | CHARMM TIP3P 与匹配离子，PME，普通截断端口用 1.0–1.2 nm 的 LJ 力切换 / CHARMM TIP3P and matching ions, PME, LJ force switch over 1.0–1.2 nm for the cutoff port |
 
 常规可溶蛋白和结构明确的有机配体可采用 A。实验室已有 CHARMM 体系、需与既有 CHARMM 模型对照，或采用 CHARMM36m 的理由明确且可获得质量合格的配体参数时，可用 B。两套力场比较时固定化学状态和起始位姿，各自使用匹配的水、离子和非键合参数，并独立平衡。  
-Route A is suitable for the standard soluble protein and well-defined organic ligand covered here. Choose B when matching an existing CHARMM protocol or when CHARMM36m is justified and suitable ligand parameters are available. To compare force fields, start from the same chemical state and pose, use the matching water, ions, and nonbonded settings for each, and equilibrate each system independently. [Amber manuals](https://ambermd.org/Manuals.php) · [GROMACS force-field notes](https://manual.gromacs.org/2026.3/user-guide/force-fields.html) · [MacKerell force-field ports](https://mackerell.umaryland.edu/charmm_ff.shtml)
+Route A provides the baseline for the soluble protein–ligand systems covered here. Select route B when a CHARMM36m protocol is justified and suitable CGenFF parameters are available. To compare the force-field families, start from the same ligand microstate and pose, apply each family's solvent, ion, and nonbonded settings, and equilibrate each system independently. [Amber manuals](https://ambermd.org/Manuals.php) · [GROMACS force-field notes](https://manual.gromacs.org/2026.3/user-guide/force-fields.html) · [MacKerell force-field ports](https://mackerell.umaryland.edu/charmm_ff.shtml)
 
 ### 路线 A · GAFF2 + AM1-BCC 配体 / Route A · GAFF2 + AM1-BCC ligand
 
@@ -967,7 +824,7 @@ obrms lig_pose.sdf lig_pose_roundtrip.sdf
 ```
 
 先对照两份 SDF 的化学图、净电荷和手性，再看原位重原子 RMSD 是否符合格式写出精度。`obrms` 在这里仅用于几何检查。核对通过后，运行 ACPYPE。  
-Compare the two SDF molecular graphs, net charge, and stereochemistry, then check that the in-place heavy-atom RMSD is consistent with file precision. `obrms` checks geometry in this step. Run ACPYPE after these checks pass.
+Compare molecular connectivity, net charge, and stereochemistry across the SDF round trip. Check that heavy-atom RMSD in the original coordinate frame is within the precision of the file format. Use ACPYPE after the chemistry and geometry checks pass.
 
 ```bash
 acpype -i lig_pose.mol2 -b LIG -a gaff2 -c bcc -n 0
@@ -978,10 +835,10 @@ cp LIG.acpype/LIG_GMX.itp ligand.itp
 ```
 
 这条命令由 ACPYPE 调用 AmberTools。`antechamber` 分配 GAFF2 原子类型，`sqm` 参与 AM1-BCC 电荷流程，`parmchk2` 查找并补充缺失参数，`tleap` 生成 Amber 拓扑，ACPYPE 导出 GROMACS 坐标和拓扑。  
-ACPYPE drives AmberTools for this route. `antechamber` assigns GAFF2 atom types, `sqm` participates in AM1-BCC charge calculation, `parmchk2` checks and supplements missing parameters, and `tleap` writes the Amber topology. ACPYPE exports GROMACS coordinates and topology. [Amber manuals](https://ambermd.org/Manuals.php) · [ACPYPE source](https://github.com/alanwilter/acpype)
+ACPYPE invokes AmberTools for parameterization. `antechamber` assigns GAFF2 atom types, `sqm` participates in AM1-BCC charge calculation, `parmchk2` identifies and supplies missing parameter terms, and `tleap` builds the Amber topology. ACPYPE exports GROMACS-compatible coordinates and topology. [Amber manuals](https://ambermd.org/Manuals.php) · [ACPYPE source](https://github.com/alanwilter/acpype)
 
 输出名以实际 ACPYPE 版本生成的文件为准。查阅 Antechamber、SQM、parmchk2 日志，审核原子类型和关键参数。在 `[ atoms ]` 中核对部分电荷之和、原子顺序、名称和质量，并按映射比较 `ligand.gro` 与对接 SDF 的重原子坐标。SDF 通常用 Å，GRO 用 nm，且写出精度不同。坐标不符或映射不清时暂停建系。  
-Use the actual ACPYPE output names for your version. Review the Antechamber, SQM, and parmchk2 logs, atom types, and key parameters. Check the partial-charge sum, atom ordering, names, and masses in `[ atoms ]`. Compare mapped heavy-atom coordinates between `ligand.gro` and the pose SDF. SDF usually uses Å and GRO uses nm, with different output precision. Resolve coordinate or mapping discrepancies before system assembly.
+Use the filenames produced by your ACPYPE version. Inspect the Antechamber, SQM, and parmchk2 logs, then review atom types and parameter terms. Verify the partial-charge sum, atom order, names, and masses in `[ atoms ]`. Compare the mapped heavy atoms in the coordinate and SDF files after accounting for Å-to-nm conversion and file precision. Resolve discrepancies before assembly.
 
 ### 路线 B · CGenFF 配体 / Route B · CGenFF ligand
 
@@ -1040,7 +897,7 @@ head -n 2 ligand.gro
 ```
 
 **两条路线的配体检查 / Ligand checks for both routes.** 将 `[ atoms ]` 的部分电荷求和，与已确认的整数净电荷比较。对照原始坐标与参数输出，确认重原子映射、Å 到 nm 的单位转换，以及 GRO 行与拓扑顺序。若参数化软件增加了虚拟粒子，核对其拓扑定义与坐标顺序。  
-Sum the partial charges in `[ atoms ]` and compare with the confirmed integer net charge. Check the heavy-atom mapping, Å-to-nm conversion, and ordering between GRO rows and topology. If parameterization adds virtual sites, review their definitions and coordinate ordering.
+Sum the partial charges in `[ atoms ]` and compare the result with the verified integer net charge. Check the heavy-atom mapping, coordinate units, and atom order between the GRO file and topology. If virtual sites are present, verify their definitions and positions in the coordinate ordering.
 
 ```bash
 awk '/^[[:space:]]*\[[[:space:]]*atoms[[:space:]]*\]/{in_atoms=1;next}
@@ -1049,7 +906,9 @@ awk '/^[[:space:]]*\[[[:space:]]*atoms[[:space:]]*\]/{in_atoms=1;next}
      END{if (!atoms) exit 1; printf "Atoms: %d; charge sum: %.6f\n", atoms,total}' ligand.itp
 ```
 
-## 07. 蛋白拓扑、位置限制与原位组装 / Assemble the protein–ligand system
+<a name="complex-assembly"></a>
+
+## 07. 蛋白拓扑、位置限制与原位组装 / Protein topology, position restraints, and complex assembly
 
 在某一力场的重复目录中准备蛋白拓扑。按计划启用一个 GROMACS 构建。CHARMM 预处理和 AMBER 预处理均可使用 CPU 或 CUDA 构建提供的同一套命令。  
 Prepare the protein topology in the selected force-field replicate directory. Activate either GROMACS build. The preprocessing commands for both force-field families are available in the CPU and CUDA builds.
@@ -1085,13 +944,13 @@ cp topol.top topol_protein.top
 ```
 
 两条路线均应核对末端、His、二硫键、链连接和 TIP3P 实际 include。需要显式指定 His 时检查当前力场与 `pdb2gmx -h`。AMBER 特殊端基按该力场的命名规则处理。  
-In both routes, check termini, histidines, disulfides, chain connectivity, and the actual TIP3P include. Consult your chosen force field and `pdb2gmx -h` for explicit histidine choices. Use AMBER naming conventions for its special terminals. [pdb2gmx reference](https://manual.gromacs.org/current/onlinehelp/gmx-pdb2gmx.html)
+Verify termini, histidine protonation states, disulfide bonds, chain connectivity, and the TIP3P include selected by the force field. Consult the force-field documentation and `pdb2gmx -h` to select explicit histidine states. Follow the AMBER naming convention for nonstandard termini. [pdb2gmx reference](https://manual.gromacs.org/current/onlinehelp/gmx-pdb2gmx.html)
 
 `pdb2gmx -ignh` 会按所选残基状态重建氢。检查生成的所有蛋白链拓扑及位置限制文件，并核对蛋白重原子的绝对位置。若有缺失重原子，应在结构准备阶段处理。  
 `pdb2gmx -ignh` rebuilds hydrogens according to the chosen residue states. Review the generated chain topologies and restraint files and verify the protein's absolute heavy-atom coordinates. Resolve missing heavy atoms during structure preparation.
 
 **路线 A 的拓扑编辑 / Topology editing for route A.** 从 `ligand.itp` 把 `[ atomtypes ]` 及必要的全局类型定义移到 `ligand_atomtypes.itp`。核对 ACPYPE 和蛋白力场的 `[ defaults ]`、组合规则及 1–4 缩放；系统只保留一套全局默认定义。如有同名类型或参数冲突，先解决再继续。蛋白拓扑和水、离子 include 保留原样，以下是插入位置示意。若配体全局类型均已正确定义，省略相应 include。  
-Move `[ atomtypes ]` and any required global type definitions from `ligand.itp` into `ligand_atomtypes.itp`. Check the ACPYPE and protein-force-field `[ defaults ]`, combination rules, and 1–4 scaling. Keep one global defaults block and resolve conflicting type definitions. Preserve the generated protein, water, and ion entries. The snippet shows insertion points. Omit the ligand atom-types include if every ligand type is already correctly defined.
+Move `[ atomtypes ]` and any other required global type definitions to `ligand_atomtypes.itp`. Verify that the ligand and protein force fields agree on `[ defaults ]`, combination rules, and 1–4 scaling. Resolve naming conflicts and keep a single global defaults block. Preserve the generated protein, solvent, and ion entries. The snippet shows where to insert the ligand includes.
 
 ```ini
 #include "amber99sb-ildn.ff/forcefield.itp"
@@ -1130,7 +989,7 @@ LIG  1
 For both routes, ensure that the order in `[ molecules ]` matches the protein, ligand, solvent, and ions in the coordinates. [GROMACS topology formats](https://manual.gromacs.org/2026.3/reference-manual/topologies/topology-file-formats.html)
 
 `LIG` 一行使用 `ligand.itp` 里 `[ moleculetype ]` 的**实际名称**。在 `ligand.gro` 上生成配体局部索引和重原子位置限制。GRO 的质量选择可能依赖名称推断，逐原子与 ITP 的质量列核对后，在 `gmx genrestr` 提示中选 `Ligand_heavy_local`。  
-Use the **actual name** from `[ moleculetype ]` in `ligand.itp` in place of `LIG`. Generate the ligand-local index and heavy-atom restraints from `ligand.gro`. A GRO-based mass selection can rely on atom-name inference. Check it against the ITP masses before selecting `Ligand_heavy_local` at the `gmx genrestr` prompt.
+Use the name in `[ moleculetype ]` from `ligand.itp` in place of `LIG`. Generate a ligand-local index and heavy-atom restraints from `ligand.gro`. A mass selection from GRO coordinates can rely on atom names. Compare the selected atoms against their ITP masses before choosing `Ligand_heavy_local` in `gmx genrestr`.
 
 ```bash
 gmx select -s ligand.gro -select '"Ligand_heavy_local" mass > 2.5' -on ligand_heavy_local.ndx
@@ -1165,14 +1024,17 @@ wc -l complex_raw.gro
 ```
 
 **验收 / Check.** 合并后叠加检查配体仍在选定口袋。核对坐标顺序、原子数、电荷与拓扑一致。盒子在下一阶段对整个复合物一起移动。  
-Overlay the merged structure to verify that the ligand is still in the selected pocket. Confirm consistency between coordinates and topology for atom order, count, and charge. The box-building step will move the complex as a unit.
+Overlay the assembled complex with the original binding pose. Check atom order, atom counts, and net charge against the topology. The box setup translates the assembled complex as a whole.
 
 <a name="simulation"></a>
 
-## 08. 编写 GROMACS 参数文件 / Prepare the GROMACS parameter files
+## 08. GROMACS 运行参数 / GROMACS run parameters (MDP)
 
 以下示例为 300 K、1 bar、0.15 M NaCl、PME 和 2 fs 时间步长的教学起点。先按给出的 AMBER 基线保存各文件，使用 CHARMM 时再按本节末尾更新非键合参数。按研究目的选择模拟长度和重复数，并记录所有改动。  
-The teaching example uses 300 K, 1 bar, 0.15 M NaCl, PME, and a 2 fs integration step. Save the AMBER baseline under the stated file names first. For CHARMM, apply the nonbonded settings at the end of this section. Choose production length and replicate count for your research question and record any changes. [Versioned MDP options](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html)
+The example uses 300 K, 1 bar, 0.15 M added NaCl, particle mesh Ewald (PME), and a 2 fs integration step. Save the AMBER baseline in the files below. For CHARMM, apply the nonbonded settings at the end of the section. Select and document the production duration and number of independent replicates for your research question. [Versioned MDP options](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html)
+
+**温压耦合 / Temperature and pressure coupling.** 本节的 V-rescale 温控与 C-rescale 压控分别有原始方法论文。参数以所用版本的 MDP 手册为准。  
+The V-rescale thermostat and C-rescale barostat are described in separate methods papers. Use the MDP reference corresponding to your GROMACS version. [V-rescale](https://doi.org/10.1063/1.2408420) · [C-rescale](https://doi.org/10.1063/5.0020514) · [GROMACS MDP reference](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html)
 
 ### `ions.mdp` · 加离子预处理 / Ion-placement preprocessing
 
@@ -1272,7 +1134,7 @@ refcoord-scaling        = com
 ### `smoke.mdp`、`pilot.mdp`、`md.mdp` · 试跑和生产 / Pilot and production
 
 复制三份 `npt.mdp`，每份都删除 `define` 和 `refcoord-scaling`，使生产阶段解除位置限制。仍约束含氢共价键的键长（`constraints = h-bonds`）。按表修改已有键，每个键在文件中只出现一次。  
-Make three copies of `npt.mdp`. Remove `define` and `refcoord-scaling` from each to release position restraints while retaining constraints on bonds involving hydrogen (`constraints = h-bonds`). Replace the existing keys as shown, keeping each key unique within its file.
+Copy `npt.mdp` for the short test, pilot, and production runs. Remove `define` and `refcoord-scaling` so that position restraints are inactive. Retain constraints on bonds involving hydrogen (`constraints = h-bonds`). Apply the stage-specific settings below, with a single entry for each key.
 
 ```bash
 cp npt.mdp smoke.mdp
@@ -1289,7 +1151,7 @@ cp npt.mdp md.mdp
 | `md.mdp` | 50,000,000 | 100 ns | 5,000 |
 
 MDP 中的整数直接写成 `50000000`，表中逗号仅用于阅读。100 ns 是命令示例。输出步长 5,000 对应 10 ps 间隔，按拟分析的时间尺度调整。  
-Enter plain integers such as `50000000` in MDP files. The 100 ns duration is an example. An output stride of 5,000 gives 10 ps between frames; adapt it to the timescale of your analysis.
+Enter integer values without group separators, for example `50000000`. The 100 ns production duration is illustrative. At a 2 fs integration step, saving every 5,000 steps gives 10 ps between frames. Select an output interval appropriate for the analysis.
 
 ### CHARMM36m + CGenFF 的 MDP 设置 / MDP settings for CHARMM36m + CGenFF
 
@@ -1308,12 +1170,14 @@ DispCorr       = no
 按当前力场目录与 MDP 核对。LJ-PME 移植包须使用其自身设置。  
 Cross-check the MDP against the chosen port. An LJ-PME port requires its own settings. [MacKerell port notes](https://mackerell.umaryland.edu/charmm_ff.shtml)
 
-## 09. 加水、加盐、最小化和平衡 / Solvate, add ions, minimize, and equilibrate
+<a name="equilibration"></a>
+
+## 09. 建系、能量最小化与平衡 / System setup, energy minimization, and equilibration
 
 ### 建盒、溶剂化和离子 / Box, solvent, and ions
 
 按所选路线先执行一个建盒命令。以下示例使用 AMBER 1.2 nm 或 CHARMM 1.4 nm 的初始溶质到盒边距。按实际盒形、截断和溶质尺寸验证周期映像间距。  
-Run one box command for your chosen route. The examples use initial solute-to-box margins of 1.2 nm for AMBER and 1.4 nm for CHARMM. Check periodic-image spacing for your box shape, cutoff, and solute.
+Use the box command for your force-field route. The examples set an initial solute-to-box boundary distance of 1.2 nm for AMBER and 1.4 nm for CHARMM. Verify solute–image separation for the chosen periodic box and cutoff.
 
 ```bash
 # AMBER
@@ -1341,7 +1205,7 @@ gmx genion -s ions.tpr -o solv_ions.gro -p topol.top \
 ```
 
 在 `genion` 提示中选择连续的纯水组 **SOL**，使用终端给出的实际组号。核对拓扑中水和离子数、总电荷、盒间距。额外的中和离子会影响最终离子强度。这里借用 `spc216.gro` 作为三点水坐标模板，实际水模型由拓扑定义。路线 A 使用 AMBER TIP3P，路线 B 使用保留氢原子 LJ 项的 CHARMM TIP3P。  
-At the prompt, select the contiguous water-only group **SOL** using the number shown. Check the topology's water and ion counts, total charge, and box clearance. Additional neutralizing ions affect the final ionic strength. Here `spc216.gro` supplies three-site water coordinates, while the topology defines the actual water model. Use AMBER TIP3P for A and CHARMM TIP3P with hydrogen LJ terms for B. [GROMACS grompp](https://manual.gromacs.org/current/onlinehelp/gmx-grompp.html) · [GROMACS MD tutorial](https://tutorials.gromacs.org/docs/md-intro-tutorial.html)
+Select the contiguous water-only group **SOL** at the prompt. Verify the solvent and ion counts, total charge, and periodic clearance. Additional counterions used for neutralization affect the final ionic strength. The `spc216.gro` file supplies coordinates for a three-site solvent. The topology defines the water model. Use AMBER TIP3P for route A and CHARMM TIP3P with hydrogen Lennard–Jones terms for route B. [GROMACS grompp](https://manual.gromacs.org/current/onlinehelp/gmx-grompp.html) · [GROMACS MD tutorial](https://tutorials.gromacs.org/docs/md-intro-tutorial.html)
 
 ### 最速下降能量最小化 / Steepest-descent minimization
 
@@ -1353,7 +1217,7 @@ gmx energy -f em.edr -o potential.xvg
 ```
 
 在 `gmx energy` 选择 **Potential**，输入 `0` 结束。查看 `em.log` 的结束原因、最大力和能量变化。示例目标为最大力小于 1,000 kJ mol⁻¹ nm⁻¹。失败时先检查位阻、原子顺序、分子拓扑和参数。  
-Select **Potential** and enter `0` to finish. Inspect the termination reason, maximum force, and energy in `em.log`. The example target is a maximum force below 1,000 kJ mol⁻¹ nm⁻¹. If minimization fails, investigate clashes, atom ordering, molecular topology, and parameters.
+Select **Potential**, then type `0` to end the selection. Review minimization termination, energy, and maximum force in `em.log`. The example force criterion is 1,000 kJ mol⁻¹ nm⁻¹. For failed minimizations, diagnose steric clashes, atom order, bonded topology, and parameter assignments.
 
 ### 建立命名分组 / Build named index groups
 
@@ -1385,7 +1249,7 @@ Exit the index viewer with `q`. Confirm that `Complex` and `Water_and_ions` are 
 ### NVT → NPT
 
 在当前 Bash 会话中，为步骤 09 的平衡及步骤 10 的模拟选择下面**一个**设备配置。此处以单节点、四 OpenMP 线程为示例。CUDA 示例使用单卡的 thread-MPI 构建。使用集群外部 MPI 构建时，按站点文档选择启动器和进程配置。在新终端续跑前重新设置数组。  
-Choose **one** device configuration in the current Bash session for equilibration and step 10. These examples use one node and four OpenMP threads. The CUDA example uses a single GPU with a thread-MPI build. Use the site-specific launcher and rank settings for an external MPI build. Set the array again before resuming in a new shell. [GROMACS runtime performance](https://manual.gromacs.org/documentation/current/user-guide/mdrun-performance.html)
+Select one compute configuration in the current Bash session for equilibration and production. The examples use four OpenMP threads on one node. The CUDA example uses one GPU with a thread-MPI build. Use the site-specific launcher and rank layout for an external-MPI build. Reinitialize the Bash array when restarting from a new shell. [GROMACS runtime performance](https://manual.gromacs.org/documentation/current/user-guide/mdrun-performance.html)
 
 ```bash
 # CPU
@@ -1408,7 +1272,7 @@ gmx energy -f nvt.edr -o temperature.xvg
 ```
 
 选择 **Temperature**，观察目标温度附近的波动与漂移，再进入 NPT。  
-Select **Temperature** and inspect fluctuation and drift around the target before proceeding to NPT.
+Select **Temperature**. Inspect fluctuations and sustained drift around the set point before proceeding to NPT equilibration.
 
 ```bash
 gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -r em.gro -p topol.top -n index.ndx \
@@ -1420,12 +1284,14 @@ gmx energy -f npt.edr -o pressure.xvg
 ```
 
 分别按文件选择 **Density**、**Volume** 和 **Pressure**。确认温度、密度和体积没有持续漂移，检查压力时间平均与合理波动。瞬时压力可有较大波动。检查日志与结构后，再进入无位置限制试跑。  
-Select **Density**, **Volume**, and **Pressure** for their respective files. Check temperature, density, and volume for sustained drift, and inspect the pressure average and fluctuations. Instantaneous pressure can fluctuate widely. Review the logs and structure before moving to the unrestrained pilot.
+Select **Density**, **Volume**, and **Pressure** for the corresponding outputs. Examine temperature, density, and volume for sustained drift. Assess pressure using its time average and fluctuations. Review the logs and structure before the unrestrained short test and pilot.
 
-## 10. 短试跑、生产与续跑 / Test, run production, and resume
+<a name="production"></a>
+
+## 10. 短试跑、生产与续跑 / Pilot runs, production, and checkpoint restart
 
 短试跑开始前，检查展开拓扑中 `[ position_restraints ]`。若返回匹配，先查明来源。检查是否出现 LINCS、SETTLE 或非有限能量等异常。之后跑 1 ns pilot 并检查实际吞吐、显存占用及剩余运行时间。  
-Before the short test, search the expanded topology for `[ position_restraints ]` and investigate any matches. Check for LINCS or SETTLE warnings and nonfinite energy. Then run the 1 ns pilot and inspect measured throughput, memory use, and estimated runtime.
+Inspect the expanded topology for active position restraints before the short test. Review warnings from LINCS or SETTLE and check for nonfinite energies. Use the 1 ns pilot to estimate throughput, device memory use, and production wall time.
 
 ```bash
 gmx grompp -f smoke.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx \
@@ -1446,7 +1312,7 @@ grep -A2 'Performance:' pilot.log
 ```
 
 通过试跑后生成生产 TPR。核对 `md_out.mdp` 的步长、步数和输出频率，检查展开拓扑并记录各阶段初始结构来源。软件运行稳定与采样是否充足需要分别评估。  
-After the pilot passes, compile the production TPR. Check the step size, step count, and output frequency in `md_out.mdp`, inspect the expanded topology, and record each phase's starting structure. Assess numerical stability and sampling adequacy separately.
+Generate the production TPR after the pilot passes. Verify the time step, number of steps, output intervals, and expanded topology. Record the starting coordinates and checkpoint used for each stage. Assess numerical stability and adequacy of sampling separately.
 
 ```bash
 gmx grompp -f md.mdp -c pilot.gro -t pilot.cpt -p topol.top -n index.ndx \
@@ -1460,7 +1326,7 @@ gmx mdrun -v -deffnm md "${md_backend[@]}" -cpt 15
 ```
 
 同一生产任务中断后，保留原始输出，确认 `md.cpt` 存在且配套 `md.tpr`、日志和轨迹，再使用检查点续跑。若修改了运行设备或显式 GPU 参数，记录实际续跑配置。需增加模拟时长时，使用 `gmx convert-tpr -extend`（单位 ps）和同一检查点。  
-For an interruption, preserve the original outputs and verify that `md.cpt` exists and belongs to the matching `md.tpr`, log, and trajectory before resuming. Record any device or explicit GPU flag changes. To extend the simulated time, use `gmx convert-tpr -extend` in ps with the same checkpoint. [GROMACS long simulations](https://manual.gromacs.org/current/user-guide/managing-simulations.html)
+Before restarting an interrupted run, preserve its output files and verify that `md.cpt` matches the production input, log, and trajectory. Record any device or offload changes. Extend the TPR with `gmx convert-tpr -extend` in picoseconds and resume from the matching checkpoint. [GROMACS long simulations](https://manual.gromacs.org/current/user-guide/managing-simulations.html)
 
 ```bash
 ls -lh md.cpt md.tpr md.log md.xtc
@@ -1486,13 +1352,15 @@ Check the end step and time against the log and trajectory before analysis. For 
 ### 独立重复 / Independent replicates
 
 独立重复在不同目录使用不同的 NVT `gen-seed`，例如 202601、202602、202603，分别完成 NVT、NPT 和后续模拟。根据研究问题决定是否使用不同起始姿态或对照。  
-Use separate directories and different NVT `gen-seed` values, such as 202601, 202602, and 202603, for independent replicates. Carry each replicate through NVT, NPT, and subsequent simulation. Choose starting poses and controls to suit the scientific question. [MD reliability and reproducibility checklist](https://www.nature.com/articles/s42003-023-04653-0)
+Run independent replicates in separate directories with distinct NVT velocity-generation seeds, for example 202601, 202602, and 202603. Equilibrate and simulate each replicate independently. Select starting poses and controls based on the study design. [MD reliability and reproducibility checklist](https://www.nature.com/articles/s42003-023-04653-0)
+
+[返回目录 / Back to contents](#contents)
 
 <a name="analysis"></a>
 
-## 11. 轨迹处理与结果解释 / Process and interpret trajectories
+## 11. 轨迹处理与分析 / Trajectory processing and analysis
 
-### 周期边界处理 / Periodic boundary processing
+### 周期边界条件处理 / Periodic boundary condition correction
 
 ```bash
 gmx trjconv -s md.tpr -f md.xtc -n index.ndx -o whole.xtc -pbc whole
@@ -1501,7 +1369,10 @@ gmx check -f centered.xtc
 ```
 
 第一条输出组选 **System**。第二条中心组选 **Protein**，输出组选 **System**。抽查最初、中间和最后几帧，确认受体、配体和多链装配的周期映像合理。对跨盒的多链装配按实际结构另行处理；分析解离时保留物理位移。  
-In the first command, select **System** for output. In the second, center on **Protein** and output **System**. Inspect frames from the beginning, middle, and end to confirm that receptor, ligand, and multichain assembly images are sensible. Handle assemblies spanning the box as needed and preserve physical displacement when studying dissociation.
+For the first command, choose **System** as output. For the second, center on **Protein** and write **System**. Inspect early, middle, and late frames to verify the relative periodic images of the receptor, ligand, and any multichain assembly. Preserve physical displacement when analyzing dissociation.
+
+**官方用法 / Official usage.** 同一次 `trjconv` 处理中，`-pbc`、`-center`、`-fit` 的组合应结合实测轨迹核对。查对应版本的选项和输出文件格式。  
+Use the versioned command reference and inspect the trajectory when combining periodic-boundary correction, centering, or fitting. [GROMACS trjconv](https://manual.gromacs.org/2026.3/onlinehelp/gmx-trjconv.html)
 
 ### RMSD、RMSF、Rg、SASA 和口袋接触 / Structural and contact metrics
 
@@ -1535,7 +1406,7 @@ gmx hbond -s md.tpr -f centered.xtc -n index.ndx -num hbond.xvg
 ```
 
 结合蛋白对齐后的配体 RMSD、最短距离、关键残基接触与代表构象，判断候选姿态是否发生移动、翻转或解离。逐个分析独立重复，保留采样窗口与剔除依据。XVG 可用 Grace 查看，或转换为表格后绘图。  
-Use protein-aligned ligand RMSD, minimum distance, key-residue contacts, and representative structures together to assess movement, flips, and dissociation. Analyze replicates separately and document analysis windows and exclusions. Plot XVG data in Grace or import it into a spreadsheet. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [New hydrogen-bond tool](https://manual.gromacs.org/current/onlinehelp/gmx-hbond.html)
+Interpret ligand RMSD after protein alignment together with minimum distance, residue contacts, and representative conformations. These measurements help distinguish displacement, reorientation, and dissociation. Analyze independent replicates separately and report analysis windows and exclusions. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [New hydrogen-bond tool](https://manual.gromacs.org/current/onlinehelp/gmx-hbond.html)
 
 ```bash
 grep -v '^[#@]' rmsd_ligand.xvg > rmsd_ligand_columns.txt
@@ -1544,10 +1415,10 @@ gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.pdb -dump 0
 ```
 
 两个导出命令都选 **Complex**。如果动画轨迹首帧时间并非 0 ps，先用 `gmx check -f complex_movie.xtc` 查出实际时间，再替换 `-dump 0` 中的数值。配套结构和动画轨迹应使用相同原子顺序。  
-Select **Complex** for both exports. If the movie starts at a time other than 0 ps, find its first-frame time with `gmx check -f complex_movie.xtc` and use that value for `-dump`. Ensure that the movie and matching structure use the same atom order.
+Select **Complex** for both exports. Verify the first trajectory time with `gmx check -f complex_movie.xtc` and use it for `-dump` if it differs from 0 ps. The reference PDB and trajectory must use the same atom order.
 
 按所选时间窗的接触、位移或构象分组选择代表帧。下例用 50,000 ps 作为示例，先运行 `gmx check -f centered.xtc` 确认实际时间，替换后再导出，选 `Complex`。报告选帧依据和实际导出时间。  
-Use the contacts, displacement, or pose grouping from the chosen time window to select a representative frame. Here 50,000 ps is an example. Check available times with `gmx check -f centered.xtc`, use your selected time, and choose `Complex`. Report the selection method and actual exported time.
+Within the analysis window, select a representative frame using a stated criterion such as contact persistence, ligand displacement, or conformational clustering. Check available timestamps in `centered.xtc`, substitute the selected time for the illustrative 50,000 ps, and choose **Complex**. Report the criterion and actual frame time.
 
 ```bash
 gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o representative.pdb -dump 50000
@@ -1577,7 +1448,7 @@ pymol
 ```
 
 在 PyMOL 命令行读取上一步已选的 `representative.pdb`。画对接结果时，换成与所选 MODEL 对应、已核对绝对坐标的复合物结构。将 `LIG` 换成 PDB 中实际的配体残基名。先用 `count_atoms` 确认选中了目标配体。  
-At the PyMOL prompt, load the selected `representative.pdb`. For a docking panel, use the complex for the selected MODEL after checking its coordinates. Replace `LIG` with the actual ligand residue name in the PDB. Verify the selection with `count_atoms`. [PyMOL selection syntax](https://pymolwiki.org/index.php/Selection_Algebra)
+At the PyMOL prompt, load `representative.pdb`. For a docking panel, load the verified complex corresponding to the selected `MODEL`. Replace `LIG` with the residue name in your structure and verify the ligand selection with `count_atoms`. [PyMOL selection syntax](https://pymolwiki.org/index.php/Selection_Algebra)
 
 ```text
 load representative.pdb, complex
@@ -1587,7 +1458,7 @@ select pocket, byres ((complex and polymer.protein) within 4.0 of ligand)
 ```
 
 以下示例分别导出全局图和口袋近景。图注注明结构来源、对接 MODEL 或轨迹时间、链/残基编号、选帧依据，以及图中口袋残基的距离标准。这里 4.0 Å 用于显示附近残基。定量接触以所报告的轨迹选择、阈值及统计方法计算。打印尺寸和输出分辨率按拟投期刊核对。  
-Export an overview and a close-up. Record the structure source, docking MODEL or trajectory time, chain and residue IDs, frame selection rule, and the cutoff used to display nearby residues. Here 4.0 Å defines the displayed pocket. Calculate quantitative contacts using the reported trajectory selection, cutoff, and method. Check the intended print dimensions and resolution against the journal instructions. [PyMOL PNG export](https://pymolwiki.org/index.php/Png)
+Export both the complete complex and a binding-site close-up. Report the structure source, docking model or trajectory time, chain and residue identifiers, frame-selection rule, and display cutoff. The illustrative 4.0 Å cutoff defines the displayed pocket. Calculate quantitative contacts from the reported trajectory, atom selections, and analysis cutoff. Follow the target journal's image-resolution and printable-size requirements. [PyMOL PNG export](https://pymolwiki.org/index.php/Png)
 
 ```text
 hide everything, complex
@@ -1611,13 +1482,13 @@ save pocket_view.pse
 #### B. Python 轨迹检查与定量绘图 / Trajectory checks and quantitative plots in Python
 
 GROMACS 先生成指标和原始 XVG。MDAnalysis 可核查结构与轨迹文件并做自定义选择。pandas 汇总带重复编号的数据，Matplotlib 和 seaborn 控制颜色、坐标单位和矢量输出。下面以蛋白拟合后的配体重原子 RMSD 为例。  
-Generate the metrics and retain the raw XVG files. MDAnalysis can inspect structure and trajectory files and perform custom selections. Use pandas to organize data with replicate labels and Matplotlib and seaborn to set colors, axis units, and vector exports. The example plots ligand heavy-atom RMSD after protein alignment. [MDAnalysis Universe](https://userguide.mdanalysis.org/stable/universe.html) · [pandas read_csv](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) · [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html) · [seaborn lineplot](https://seaborn.pydata.org/generated/seaborn.lineplot.html)
+Calculate the metrics first and archive the original XVG output. Use MDAnalysis for trajectory inspection and custom atom selections, pandas for replicate-level tables, and Matplotlib or seaborn for plots and vector export. The example plots ligand heavy-atom RMSD after alignment to the protein. [MDAnalysis Universe](https://userguide.mdanalysis.org/stable/universe.html) · [pandas read_csv](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) · [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html) · [seaborn lineplot](https://seaborn.pydata.org/generated/seaborn.lineplot.html)
 
 <details>
 <summary>展开命令 / Show commands</summary>
 
 在 MD 重复目录运行，使用步骤 11 生成的 `rmsd_ligand_columns.txt`。有多个重复时，在 `repeat_files` 中为每份数据添加真实路径；每份 RMSD 需采用同一拟合、单位和时间定义。下面逐条显示重复轨迹。若加汇总曲线或区间，图注明确统计单位、重复数和区间定义。  
-Run from the MD replicate directory using `rmsd_ligand_columns.txt` from step 11. For multiple replicates, add each actual path to `repeat_files`. Keep the alignment, units, and time convention consistent. The example shows individual traces. For a summary line or interval, define the statistical unit, replicate count, and interval in the legend.
+Run from the corresponding replicate directory and use the `rmsd_ligand_columns.txt` produced in step 11. Add the actual input path for each independent replicate to `repeat_files`. Use consistent alignment, units, and time conventions. If reporting a summary or uncertainty interval, define the statistical unit, replicate count, and interval in the figure legend.
 
 ```bash
 conda create -n md-analysis --override-channels -c conda-forge \
@@ -1680,6 +1551,23 @@ PY
 3. 按期刊要求统一字体、面板编号、图例和输出尺寸。保持图版与数据、结构和坐标轴一致，保留原图及裁切记录。需要修改数据曲线、绘图单位或结构呈现时，在 GROMACS、Python 或 PyMOL 中更新源面板，再重新组图。  
    Match the journal's requirements for type, panel labels, legends, and export dimensions. Preserve the underlying data, structures, axis scales, originals, and cropping records. Update plots, units, or structural views in the source tool, then rebuild the figure. [Nature figure integrity](https://research-figure-guide.nature.com/figures/image-integrity/) · [PLOS figure guidelines](https://journals.plos.org/plosone/s/figures)
 
+<a name="agent-workflow"></a>
+
+#### D. 可选的 Agent 辅助润色与组图 / Optional agent-assisted editing and panel assembly
+
+计算和出图优先使用开源工具组合。用开源 PyMOL 和 Python 从真实结构与数据生成源面板，再用 Inkscape 或 GIMP 排版。Agent 可以运行已核对的命令、排版现有面板和整理修改记录。  
+Prefer an open-source toolchain. Generate the source panels from structures and data with open-source PyMOL and Python, then assemble them in Inkscape or GIMP. An agent can run reviewed commands, arrange existing panels, and document changes. [Agent Skills specification](https://agentskills.io/specification) · [OpenAI Skills documentation](https://developers.openai.com/plugins/concepts/skills)
+
+| 要做的事 / Task | 可选工具与操作 / Suggested tools and use |
+| --- | --- |
+| 学术英语润色 / Academic copyediting | 社区项目 `nature-skills` 的 `nature-polishing` 可帮助统一术语和时态。提供现有稿件、术语表和已核实的引文，让 Agent 交付修改对照，作者复核数值、限定语、结论强度和 DOI。 / Use the community `nature-polishing` skill to harmonize scientific wording and tense. Supply the draft, glossary, and verified references. Request tracked changes and review numerical values, qualifiers, claim strength, and DOIs. [nature-polishing](https://github.com/Yuan1z0825/nature-skills/blob/main/skills/nature-polishing/README_EN.md) |
+| 从数据出图与组图 / Data-driven figures | 用 `nature-figure` 协助拟定图版布局与图例。实际曲线仍由归档的 CSV/XVG 和 Matplotlib 生成，结构图由归档的 PDB 与 PyMOL 命令生成。把面板编号、位置及源文件交给 Agent，用 Inkscape 或 GIMP 排版。 / Use `nature-figure` to plan panel layout and legends. Generate plots from archived CSV/XVG and molecular views from archived structures and PyMOL commands. Give the agent the panel IDs, placement, and source files for assembly. [nature-figure](https://github.com/Yuan1z0825/nature-skills/blob/main/skills/nature-figure/README_EN.md) |
+| 检查最终文件 / Verify final outputs | 可结合 Superpowers 的 `verification-before-completion`，检查面板是否齐全、数值与单位是否对应、标签有无遮挡、导出文件是否可打开。 / Use Superpowers' verification skill to check panel completeness, numerical values, units, label collisions, and whether export files reopen. [Superpowers verification](https://github.com/obra/superpowers/blob/main/skills/verification-before-completion/SKILL.md) |
+| 已有 Photoshop 的批量排版 / Batch layout in an existing Photoshop installation | Adobe Photoshop 是授权软件。`drmedia/photoshop-mcp` 是第三方 MIT 许可的 Photoshop UXP 桥接项目，可用于置入现有面板、整理图层和批量导出。需要安装兼容的 Photoshop，并在副本上核对操作。 / Adobe Photoshop is licensed software. The third-party MIT-licensed `drmedia/photoshop-mcp` bridge can place source panels, organize layers, and export files using a compatible Photoshop installation. Verify the process on a working copy. [Photoshop MCP](https://github.com/drmedia/photoshop-mcp) · [Adobe Photoshop](https://www.adobe.com/products/photoshop.html) |
+
+`nature-skills` 和 Superpowers 是社区项目。图件和文章应遵循目标期刊对生成式 AI、语言润色和披露的要求。涉及投稿的图版以可追溯的源数据、结构和渲染记录为准，作者负责审核最终文字与图件。  
+`nature-skills` and Superpowers are community projects. Follow the target journal's policies on generative AI, copyediting, and disclosure. Base submitted figures on traceable data, structures, and rendering records. The authors are responsible for reviewing the final manuscript and figures. [Nature editorial policy on AI](https://www.nature.com/nature-portfolio/editorial-policies/ai) · [Nature figure integrity guide](https://research-figure-guide.nature.com/figures/image-integrity/)
+
 <a name="endpoint-energy"></a>
 
 ### 可选分析：MM/GBSA 与 MM/PBSA / Optional MM/GBSA and MM/PBSA
@@ -1688,7 +1576,7 @@ PY
 <summary>展开步骤 / Show commands</summary>
 
 以下输入示例用于已经完成 AMBER 路线的独立重复。CHARMM 路线应先按上游 CHARMM 示例核对拓扑转换、半径集和所选 PB/GB 模型的适配性。按上游安装指南在单独环境安装 `gmx_MMPBSA`，先跑对应的上游案例。回到自己的 MD 重复目录，核对工具版本及 GROMACS 能读取当前 TPR。  
-The inputs below are examples for a completed AMBER replicate. For CHARMM, consult the upstream CHARMM case and verify topology conversion, radii, and PB/GB model compatibility. Install `gmx_MMPBSA` in a separate environment per the upstream guide and run its example first. Return to your MD replicate directory, check the tool versions, and verify that GROMACS can read the TPR. [Installation](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA/blob/master/docs/installation.md) · [CHARMM examples](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA/blob/master/examples/README.md)
+The example inputs are for a completed AMBER replicate. For CHARMM, use the corresponding upstream example to verify topology conversion, radii, and compatibility with the selected PB or GB model. Install `gmx_MMPBSA` in a separate environment and verify the installation using an upstream example. Check versions and verify TPR readability from the MD replicate directory. [Installation](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA/blob/master/docs/installation.md) · [CHARMM examples](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA/blob/master/examples/README.md)
 
 ```bash
 gmx --version
@@ -1701,7 +1589,7 @@ gmx make_ndx -f em.gro -n index.ndx -o index_energy_review.ndx
 ```
 
 先按轨迹和研究问题选择实际时间窗。这里的 80–100 ns 与 100 ps 间隔仅为示例。截帧时选 `System` 以保留完整的原子顺序。查看与实际 `index.ndx` 对应的 `Protein` 和 `Ligand` 组号，输入 `q` 退出。用生成 `md.tpr` 时保存的 `md_processed.top`，确保其与生产拓扑一致。  
-Choose the actual window based on the trajectory and research question. The 80–100 ns window and 100 ps stride are examples. Select `System` when extracting frames to preserve full atom order. Note the numeric IDs for `Protein` and `Ligand` in the supplied `index.ndx` and enter `q`. Use the expanded `md_processed.top` saved when compiling `md.tpr` and verify that it matches the production topology.
+Select the analysis window and sampling interval for the study. The example uses 80–100 ns with a 100 ps stride. Select `System` during trajectory extraction to retain atom order. Record the actual `Protein` and `Ligand` index IDs, then exit with `q`. Verify that `md_processed.top` corresponds to the production TPR.
 
 在 `energy_gbsa/gbsa.in` 和 `energy_pbsa/pbsa.in` 分别保存以下配置。选择所需的一种或两种方法，明确报告对应的盐浓度、隐式溶剂模型、介电和半径设置。下例不含构象熵。  
 Save the following inputs as `energy_gbsa/gbsa.in` and `energy_pbsa/pbsa.in`. Select the method or methods you need and report the salt concentration, implicit-solvent model, dielectric settings, and radii. These examples omit conformational entropy. [Input namelists](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA/blob/master/docs/input_file.md) · [Command-line flags](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA/blob/master/docs/gmx_MMPBSA_command-line.md)
@@ -1758,11 +1646,15 @@ read -r -p 'Ligand group number: ' ligand_group
 ```
 
 检查日志中的拓扑转换、组分和处理帧数是否正确。按独立重复报告结果和不确定性。MM/GBSA 与 MM/PBSA 都是依赖模型和采样窗口的端点估算，实验结合亲和力需要独立验证。  
-Verify topology conversion, component assignments, and the processed frame count in the logs. Report estimates and uncertainty across independent replicates. MM/GBSA and MM/PBSA are endpoint estimates dependent on the model and sampling window. Experimental affinity requires independent evidence.
+Check topology conversion, component assignments, and frame counts in the output logs. Report endpoint estimates and uncertainty across independent replicates. Interpret MM/GBSA and MM/PBSA estimates in the context of the model and sampling window. Establish experimental affinity independently.
 
 </details>
 
-## 12. 常见故障与复现材料 / Troubleshooting and reproducibility
+[返回目录 / Back to contents](#contents)
+
+<a name="reproducibility"></a>
+
+## 12. 排错与复现记录 / Troubleshooting and reproducibility records
 
 | 现象 / Symptom | 核查与处理 / Check and action |
 | --- | --- |
@@ -1778,7 +1670,7 @@ Verify topology conversion, component assignments, and the processed frame count
 | GPU 或检查点报错 / GPU or checkpoint error | GPU 检查节点分配、驱动、构建和日志。续跑检查匹配的 TPR、CPT 和已完整保存的原始输出。 / For GPU errors, check allocation, driver, build, and logs. For restart errors, check the matching TPR, CPT, and original outputs. |
 
 复现时保存原始结构来源与 SHA-256、环境锁文件、受体和配体状态、搜索盒、种子、所有对接结果、姿态选取和原子映射记录、力场与电荷模型、MDP、展开拓扑、TPR/CPT/EDR/XTC、GROMACS 日志、分析分组和选取区间。在项目根目录记录软件环境，CUDA 源码构建另存 `gmx --version` 与编译配置。  
-Archive structure provenance and SHA-256 hashes, environment locks, receptor and ligand states, the search box, seeds, docking outputs, pose and atom-mapping records, the force field and charge model, MDPs, expanded topologies, TPR/CPT/EDR/XTC files, logs, analysis selections, and time windows. Record environments from the project root. For source builds, also retain `gmx --version` and the build configuration.
+Archive input structure provenance and SHA-256 hashes, environment locks, ligand microstates, receptor preparation, docking boxes and seeds, pose selections and atom maps, force-field and charge assignments, MDPs, processed topologies, TPR/CPT/EDR/XTC outputs, logs, analysis selections, and time windows. Retain `gmx --version` and the configuration for CUDA source builds.
 
 ```bash
 conda list -n docktools --explicit > qc/docktools-explicit.txt
@@ -1805,7 +1697,192 @@ conda run -n docktools python -m pip freeze > qc/docktools-pip.txt
 每个最终图版记录面板编号、体系、重复编号、源文件、画图工具版本与参数、裁切或图层信息。对结构图记录模型号或实际帧时间，对定量图记录索引组、参考结构、对齐方式、分析时间窗和汇总方式。归档`XVG/CSV`、`PDB`、原始面板以及`SVG/PSD/XCF`等可编辑源文件，按期刊与数据来源要求提供材料。  
 For each final panel, record its system, replicate, source files, plotting tool version and settings, and cropping or layer edits. Include the MODEL or frame time for structures, and selections, reference, alignment, analysis window, and summary method for quantitative plots. Retain XVG/CSV, PDB, original renderings, and editable SVG, PSD, or XCF files. Share materials according to the journal's and data providers' requirements. [MD reproducibility checklist](https://doi.org/10.1038/s42003-023-04653-0) · [Nature figure integrity](https://research-figure-guide.nature.com/figures/image-integrity/)
 
-<a name="sources"></a>
+## 网课常见误操作与流程对照 / Tutorial pitfalls and workflow comparison
+
+下例用常见教学操作复现问题，供跟练时自查。  
+The examples below show common workflow errors and the checks that detect them.
+
+<a name="tutorial-error-flow"></a>
+
+### 网课错误流程图 / Tutorial error flowchart
+
+按箭头读一条常见的误操作路径。各步骤的后果、纠正方法，以及如何解读对接分数和 RMSD，见下表和轨迹分析章节。
+
+```mermaid
+flowchart TD
+    Receptor("盲删受体组分") --> Dock("跳过重对接")
+    Box("网格数当盒长") --> Dock
+    Dock --> Pose("重建配体坐标")
+    Dock --> Force("混用力场")
+    Pose --> Warn("跳过建系警告")
+    Force --> Warn
+    Warn --> Claim(["误判为强结合"])
+
+    classDef input fill:#fff2eb,stroke:#a34d37,color:#40251b
+    classDef checkpoint fill:#eef5fc,stroke:#63809f,color:#152e48
+    classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
+    class Receptor,Box,Pose,Force input
+    class Dock,Warn checkpoint
+    class Claim outcome
+```
+
+<details>
+<summary>English version</summary>
+
+Follow the stages in order, then consult the table for each failure mode, its consequences, and the corrective check.
+
+```mermaid
+flowchart TD
+    Receptor("Strip components") --> Dock("Skip redocking")
+    Box("Misread box units") --> Dock
+    Dock --> Pose("Rebuild the pose")
+    Dock --> Force("Mix force fields")
+    Pose --> Warn("Ignore warnings")
+    Force --> Warn
+    Warn --> Claim(["Overclaim binding"])
+
+    classDef input fill:#fff2eb,stroke:#a34d37,color:#40251b
+    classDef checkpoint fill:#eef5fc,stroke:#63809f,color:#152e48
+    classDef outcome fill:#a23542,stroke:#80242e,color:#ffffff
+    class Receptor,Box,Pose,Force input
+    class Dock,Warn checkpoint
+    class Claim outcome
+```
+
+</details>
+
+| 常见做法 / Common shortcut | 会发生什么 / Consequence | 正确操作 / Fix |
+| --- | --- | --- |
+| 删除所有非蛋白原子 / Delete everything outside the protein | 可能丢失界定口袋的共晶配体、维持配位的金属或必要辅因子。 / This can remove the co-crystal reference ligand, a coordination metal, or an essential cofactor. | 先另存参考配体，记录各异质成分的保留与去除理由。需要金属或辅因子的体系专项建模。 / Save the reference ligand first and document each component decision. Model essential metals and cofactors explicitly. |
+| 把 ADT 盒子的 60 个间隔写成 Vina 的 `size_x = 60` / Copy 60 ADT intervals into Vina as `size_x = 60` | 若间隔为 0.375 Å，实际示例边长为 22.5 Å，输入 60 会显著扩大搜索空间。 / At 0.375 Å per interval, the intended length is 22.5 Å. Entering 60 greatly enlarges the search space. | 转成 Å，再叠加受体和参考配体验证覆盖。 / Convert to Å and inspect coverage on the receptor and reference ligand. |
+| 把已对接的 PDBQT 转 MOL2 时重建 3D，再接 MD / Regenerate 3D geometry while converting a docked PDBQT to MOL2 | 恢复的化学图可能错误，配体有可能移出口袋或改变位姿。 / The reconstructed graph can be wrong and the ligand may move or change pose. | Meeko 恢复原始 SDF 化学图，Open Babel 仅做格式转换并保留原位重原子坐标。 / Recover the SDF graph with Meeko, then convert the format while retaining the pose coordinates. |
+| CUDA 能识别显卡，就给官方 `vina.exe` 加 GPU 参数 / Treat a working CUDA driver as GPU support in upstream `vina.exe` | 官方 Vina 的普通批处理仍由 CPU 执行。 / Standard upstream Vina batch docking still runs on the CPU. | 选择 Uni-Dock CUDA 或上游明确提供 GPU 后端的程序，并通过日志和设备监控确认。 / Choose Uni-Dock CUDA or an engine with a documented GPU backend and check both its log and device activity. |
+| 将 GAFF2 配体直接 include 到 CHARMM36m 蛋白拓扑 / Include a GAFF2 ligand directly in a CHARMM36m topology | 非键合默认项、1–4 规则及参数体系可能冲突。 / Nonbonded defaults, 1–4 rules, and parameter conventions can conflict. | 使用 AMBER + GAFF2 或 CHARMM + CGenFF 的匹配路线。 / Use the matched AMBER + GAFF2 or CHARMM + CGenFF combination. |
+| 遇到 grompp warning 直接抬高 `-maxwarn`，或把最低对接分数当作亲和力 / Raise `-maxwarn` after warnings or interpret the lowest docking score as affinity | 可能放行错序拓扑、未知参数或误读筛选结果。 / This can hide topology and parameter problems or overstate a screening result. | 检查展开拓扑、警告原文和重对接结果，用独立实验评价亲和力。 / Review the expanded topology, warning messages, and redocking, and use independent experiments to assess affinity. |
+
+<a name="chem3d-pymol-topology"></a>
+
+### 网课错误方法与本教程路线 / Tutorial shortcut and reviewed workflow
+
+先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列以新项目的 Meeko 路线为例，先恢复 SDF 并核对化学与位姿，再转 MOL2 和参数化。已经完成对接的 ADT 项目，见[路线 B 的原始 SDF 模板恢复](#legacy-adt-handoff)。
+
+```mermaid
+flowchart TD
+    start["同一小分子"]
+    wrong["网课误操作"]
+    right["本教程路线"]
+    w1["`Chem3D
+导出 MOL2`"]
+    r1["`Molscrub
+RDKit · SDF`"]
+    w2["`AutoDockTools
+制备 PDBQT`"]
+    r2["`Meeko
+制备 PDBQT`"]
+    w3["`Vina
+output.pdbqt`"]
+    r3["`Vina / Uni‑Dock
+对接位姿`"]
+    w4["`PyMOL
+直接另存 MOL2`"]
+    r4["`Meeko · RDKit
+恢复并核对 SDF`"]
+    w5["`直接参数化
+生成 lig.top`"]
+    r5["`Open Babel
+原位转 MOL2`"]
+    w6["化学未经核对"]
+    r6["`ACPYPE / CGenFF
+生成配体拓扑`"]
+    start --> wrong & right
+    wrong --> w1 --> w2 --> w3 --> w4 --> w5 --> w6
+    right --> r1 --> r2 --> r3 --> r4 --> r5 --> r6
+
+    classDef source fill:#edf3fc,stroke:#5b7fa9,color:#18324f,stroke-width:1.5px
+    classDef legacy fill:#fff2ed,stroke:#b26953,color:#462d25,stroke-width:1.5px
+    classDef reviewed fill:#e4f6ef,stroke:#548f7c,color:#164436,stroke-width:1.5px
+    classDef risk fill:#9b3643,stroke:#842933,color:#ffffff,stroke-width:1.5px
+    classDef approved fill:#176154,stroke:#176154,color:#ffffff,stroke-width:1.5px
+    class start source
+    class w1,w2,w3,w5 legacy
+    class r1,r2,r3,r5 reviewed
+    class wrong,w4,w6 risk
+    class right,r4,r6 approved
+```
+
+**风险出在对接到 MD 的交接。** Chem3D 可以用于构象准备，MOL2 也可以作为参数化输入。PDBQT 保存对接坐标、原子类型和部分电荷，缺少用于可靠还原完整键级和形式电荷的信息。非极性氢也常在制备时合并。PyMOL 另存为 MOL2 时，即使重原子位置看起来一致，也需要对照原始配体检查键级、芳香性、质子化状态和净电荷。参数化完成只说明工具处理了该输入，化学状态仍需单独核对。MD 的部分电荷应按所选力场方案生成。
+
+**可靠的交接方法。** 保留与对接输入同一化学状态的原始 SDF 或 MOL2。用 Meeko 制备配体时保留 `REMARK SMILES` 和 `REMARK SMILES IDX`，从所选对接位姿恢复 SDF，再逐原子核对重原子坐标、键级、手性和净电荷。确需 MOL2 时只转换格式，保留已核对的位姿，最后用所选的 AMBER 或 CHARMM 路线参数化。旧版 ADT 的输出若缺少 Meeko 映射，可用原始结构做可靠的原子映射。无法确认映射时，用 Meeko 重新制备并对接。
+
+<details>
+<summary>Workflow comparison in English</summary>
+
+The example begins with ligand optimization in Chem3D, MOL2 export, and PDBQT preparation in AutoDockTools (ADT). After Vina writes `output.pdbqt`, the shortcut saves the selected pose as MOL2 in PyMOL and proceeds directly to `lig.top` or `lig.itp`. The right column shows how the Meeko workflow verifies the chemistry before parameterization. Completed ADT jobs can use the [original SDF template](#legacy-adt-handoff).
+
+```mermaid
+flowchart TD
+    start["Same ligand"]
+    wrong["Tutorial shortcut"]
+    right["Reviewed workflow"]
+    w1["`Chem3D
+Export MOL2`"]
+    r1["`Molscrub
+RDKit · SDF`"]
+    w2["`AutoDockTools
+Prepare PDBQT`"]
+    r2["`Meeko
+Prepare PDBQT`"]
+    w3["`Vina
+output.pdbqt`"]
+    r3["`Vina / Uni‑Dock
+Docked poses`"]
+    w4["`PyMOL
+Save MOL2 directly`"]
+    r4["`Meeko · RDKit
+Check pose SDF`"]
+    w5["`Parameterize directly
+Build lig.top`"]
+    r5["`Open Babel
+SDF → MOL2`"]
+    w6["Unchecked graph"]
+    r6["`ACPYPE / CGenFF
+Build ligand topology`"]
+    start --> wrong & right
+    wrong --> w1 --> w2 --> w3 --> w4 --> w5 --> w6
+    right --> r1 --> r2 --> r3 --> r4 --> r5 --> r6
+
+    classDef source fill:#edf3fc,stroke:#5b7fa9,color:#18324f,stroke-width:1.5px
+    classDef legacy fill:#fff2ed,stroke:#b26953,color:#462d25,stroke-width:1.5px
+    classDef reviewed fill:#e4f6ef,stroke:#548f7c,color:#164436,stroke-width:1.5px
+    classDef risk fill:#9b3643,stroke:#842933,color:#ffffff,stroke-width:1.5px
+    classDef approved fill:#176154,stroke:#176154,color:#ffffff,stroke-width:1.5px
+    class start source
+    class w1,w2,w3,w5 legacy
+    class r1,r2,r3,r5 reviewed
+    class wrong,w4,w6 risk
+    class right,r4,r6 approved
+```
+
+Chem3D can generate conformers, and a chemically verified MOL2 can serve as input for parameterization. PDBQT records coordinates, atom types, and docking partial charges. Recovery of bond orders and formal charge requires the original chemical graph or equivalent mapping metadata. Preparation can merge nonpolar hydrogens. Compare bond orders, aromaticity, protonation, and net charge against the source ligand, and assign MD partial charges using the chosen force-field protocol.
+
+Archive an SDF or MOL2 for the original ligand microstate. Recover the selected pose using the Meeko SMILES and atom-index mapping, then verify bond orders, stereochemistry, net charge, and heavy-atom coordinates. If MOL2 is required, convert the verified pose without altering its coordinates. For legacy ADT output, establish an unambiguous atom map to the original ligand. Redock a newly prepared Meeko input if the mapping cannot be verified.
+
+</details>
+
+依据 / References · [Vina: Exporting results to SDF](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf) · [Meeko: Exporting docking results](https://meeko.readthedocs.io/en/develop/export_usage.html) · [PyMOL: Save](https://pymolwiki.org/index.php/Save) · [ACPYPE: Ligand parameterization](https://acpype.readthedocs.io/en/latest/)
+
+例如，一个来自 Meeko 对接任务的 PDBQT 应先恢复为 SDF，再取经核对的记录转 MOL2。以下在步骤 05 的目录运行，`1` 是核对过的记录号示例。  
+Run the following commands from the step 05 work directory to export and convert a Meeko-prepared pose. Set the SDF record number to the value established during pose selection.
+
+```bash
+mk_export.py selected_run.pdbqt -s docked_poses.sdf
+obabel docked_poses.sdf -f 1 -l 1 -O lig_pose.sdf
+obabel lig_pose.sdf -O lig_pose.mol2
+```
+
+上游依据 / Upstream references · [Vina box and pose export](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [GROMACS force fields](https://manual.gromacs.org/2026.3/user-guide/force-fields.html) · [grompp warnings and expanded topology](https://manual.gromacs.org/current/onlinehelp/gmx-grompp.html)
+
+[返回目录 / Back to contents](#contents)
 
 <a name="method-evidence"></a>
 
@@ -1813,13 +1890,15 @@ For each final panel, record its system, replicate, source files, plotting tool 
 
 | 技术选择 / Method | 论文与官方操作依据 / Papers and official instructions |
 | --- | --- |
-| CPU 与 CUDA 批量对接 / CPU and CUDA batch docking | Vina 基础论文及 1.2 论文给出 CPU 引擎、评分和搜索方法，Uni-Dock 论文说明 GPU 筛选实现。用相同输入与共晶参考分别验证两种引擎。 / The Vina papers describe its scoring and search, while the Uni-Dock paper describes its GPU screening implementation. Validate the engines separately against the same co-crystal reference. [Vina 1.2 paper](https://doi.org/10.1021/acs.jcim.1c00203) · [Uni-Dock paper](https://doi.org/10.1021/acs.jctc.2c01145) · [Vina batch manual](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html) · [Docking validation review](https://pubmed.ncbi.nlm.nih.gov/42223532/) |
+| CPU 与 CUDA 批量对接 / CPU and CUDA batch docking | Vina 基础论文及 1.2 论文给出 CPU 引擎、评分和搜索方法，Uni-Dock 论文说明 GPU 筛选实现。用相同输入与共晶参考分别验证两种引擎。 / The Vina papers describe its scoring and search, while the Uni-Dock paper describes its GPU screening implementation. Validate the engines separately against the same co-crystal reference. [Vina 1.2 paper](https://doi.org/10.1021/acs.jcim.1c00203) · [Uni-Dock paper](https://doi.org/10.1021/acs.jctc.2c01145) · [Vina batch manual](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html) · [Docking validation review](https://doi.org/10.1007/s10822-026-00849-8) |
 | 化学状态与位姿恢复 / Chemical state and pose recovery | Molscrub 手册说明状态生成，Meeko 论文与导出文档说明如何用映射还原分子，RDKit 文档支持独立读取和比较化学图。 / The Molscrub manual covers state generation, the Meeko paper and export docs explain mapped recovery, and the RDKit guide covers independent chemical-graph checks. [Molscrub CLI](https://molscrub.readthedocs.io/en/latest/cli.html) · [Meeko paper](https://doi.org/10.1021/acs.jcim.5c02271) · [Meeko export](https://meeko.readthedocs.io/en/develop/export_usage.html) · [RDKit guide](https://www.rdkit.org/docs/GettingStartedInPython.html) |
 | AMBER99SB-ILDN + GAFF2 / AM1-BCC | 蛋白、配体与电荷模型分别引用；GAFF2 的具体文件和版本以实际 AmberTools 手册为准。 / Cite the protein force field, ligand force field, and charge model separately. Use the selected AmberTools manual for the GAFF2 implementation. [AMBER99SB-ILDN](https://doi.org/10.1002/prot.22711) · [GAFF paper](https://doi.org/10.1002/jcc.20035) · [AM1-BCC](https://doi.org/10.1002/jcc.10128) · [ACPYPE](https://doi.org/10.1186/1756-0500-5-367) · [Amber manuals](https://ambermd.org/Manuals.php) |
 | CHARMM36m + CGenFF | CHARMM36m 与 CGenFF 分别覆盖蛋白与有机小分子。力场移植、stream 版本和罚分处理以官方文档为准。 / CHARMM36m and CGenFF cover the protein and organic ligand, respectively. Use upstream docs to select the matching port and stream version and assess penalties. [CHARMM36m](https://doi.org/10.1038/nmeth.4067) · [CGenFF](https://doi.org/10.1002/jcc.21367) · [MacKerell force-field releases](https://mackerell.umaryland.edu/charmm_ff.shtml) · [CGenFF usage](https://docs.silcsbio.com/2026/cgenff/usage.html) |
 | 动力学验收与可选能量估算 / MD checks and optional endpoint energies | GROMACS 手册支持命令和续跑设置。复现性核对表支持记录采样与独立重复。gmx_MMPBSA 论文说明端点计算方法。 / The GROMACS manual documents setup and restart commands. The reproducibility checklist guides sampling and replicate reporting. The gmx_MMPBSA paper describes the endpoint calculation. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [Managing simulations](https://manual.gromacs.org/2026.3/user-guide/managing-simulations.html) · [MD reproducibility checklist](https://doi.org/10.1038/s42003-023-04653-0) · [gmx_MMPBSA paper](https://doi.org/10.1021/acs.jctc.1c00645) |
 
-## 13. 工具清单、官网与上游源码 / Tools, official sites, and upstream repositories
+<a name="sources"></a>
+
+## 13. 工具清单、官网与上游源码 / Tools, official documentation, and upstream repositories
 
 按实际使用的版本和模块引用软件及方法。下表列出官网、文档和上游源码，分别标注辅助工具、数据源及授权软件的角色。  
 Cite the versions and modules you used. The directory links official sites, manuals, and upstream source where available, and identifies the roles of optional tools, data sources, and licensed software.
@@ -1848,8 +1927,27 @@ Cite the versions and modules you used. The directory links official sites, manu
 | Matplotlib、seaborn · 曲线和统计图 / Scientific plotting | [Matplotlib](https://matplotlib.org/) · [seaborn](https://seaborn.pydata.org/) | [matplotlib/matplotlib](https://github.com/matplotlib/matplotlib) · [mwaskom/seaborn](https://github.com/mwaskom/seaborn) |
 | Inkscape、GIMP · 开源图版排版 / Open-source panel assembly | [Inkscape](https://inkscape.org/) · [GIMP](https://www.gimp.org/) | [Inkscape on GitLab](https://gitlab.com/inkscape/inkscape) · [GIMP source](https://developer.gimp.org/core/setup/git/) |
 | Adobe Photoshop · 可选位图组图 / Optional raster layout | [Adobe Photoshop](https://www.adobe.com/products/photoshop.html) · [Smart Objects](https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-embedded-smart-objects.html) | Adobe 授权软件 / Adobe-licensed software |
+| Photoshop MCP ·可选的 UXP 排版自动化 / Optional UXP layout automation | [Adobe Photoshop UXP](https://developer.adobe.com/photoshop/uxp/2022/) | [drmedia/photoshop-mcp](https://github.com/drmedia/photoshop-mcp) |
+| Agent Skills、nature-skills、Superpowers · 可选的语言与图版协助 / Optional editing and figure workflow | [Agent Skills specification](https://agentskills.io/specification) · [Nature editorial policy on AI](https://www.nature.com/nature-portfolio/editorial-policies/ai) | [Yuan1z0825/nature-skills](https://github.com/Yuan1z0825/nature-skills) · [obra/superpowers](https://github.com/obra/superpowers) |
 
-## 14. 参考论文 / References
+<a name="references"></a>
+
+## 14. 参考文献与软件引用 / References and software citation
+
+### 软件、数据与本教程的引用 / How to cite software, data, and this guide
+
+论文方法部分记录实际使用的软件和版本，注明力场及电荷模型、结构的登录号或 DOI，以及本教程对应的 Git 提交。按期刊要求引用适用的软件论文、数据记录和算法；未采用的可选工具可以留在技术附录的资源清单。  
+In the Methods, identify the actual software versions, force fields, charge model, structure accessions or DOIs, and the Git commit of the guide used. Cite the papers, data records, and algorithms that contributed to the study.
+
+| 引用对象 / Resource | 引用和记录方式 / Citation and reporting |
+| --- | --- |
+| 结构及化学数据 / Structures and chemical data | 记录 PDB ID、chain、配体实例、PubChem CID 或配体来源。1IEP 示例可引用结构 DOI。 / Record the PDB accession, chain, ligand instance, PubChem CID or ligand source. For the 1IEP example, cite the structure DOI. [1IEP data DOI](https://doi.org/10.2210/pdb1IEP/pdb) · [wwPDB CCD](https://www.wwpdb.org/data/ccd) · [PubChem](https://pubchem.ncbi.nlm.nih.gov/) |
+| 对接与化学处理 / Docking and chemistry | 按所选引擎引用 Vina 或 Uni-Dock；记录 Molscrub、Meeko、RDKit、Open Babel 的实际版本及采用的方法。 / Cite the selected docking engine and document the Molscrub, Meeko, RDKit, and Open Babel versions and methods used. [Vina citations](https://github.com/forlilab/AutoDock-Vina#citations) · [Uni-Dock paper](https://doi.org/10.1021/acs.jctc.2c01145) · [Molscrub source](https://github.com/forlilab/molscrub) · [RDKit citation](https://rdkit.org/docs/Overview.html#citing-the-rdkit) · [Meeko paper](https://doi.org/10.1021/acs.jcim.5c02271) · [Open Babel paper](https://doi.org/10.1186/1758-2946-3-33) |
+| 力场和动力学 / Force fields and MD | 引用所用的蛋白与配体力场、电荷模型、GROMACS、采用的温压耦合算法和参数化程序。记录力场版本。 / Cite the protein and ligand force fields, charge model, GROMACS, the coupling algorithms used, and the parameterization tools. Include force-field versions. [Amber manuals](https://ambermd.org/Manuals.php) · [CHARMM force fields](https://mackerell.umaryland.edu/charmm_ff.shtml) · [ACPYPE paper](https://doi.org/10.1186/1756-0500-5-367) · [GROMACS paper](https://doi.org/10.1016/j.softx.2015.06.001) |
+| 轨迹、能量与图件 / Trajectories, energies, and figures | 按实际使用的软件和模块引用 MDAnalysis、gmx_MMPBSA、PyMOL、pandas、Matplotlib 和 seaborn，记录图版工具版本。 / Follow each project's guidance for any MDAnalysis modules, gmx_MMPBSA calculations, PyMOL builds, pandas releases, Matplotlib, or seaborn used. Record figure assembly software and versions. [MDAnalysis citations](https://github.com/MDAnalysis/mdanalysis#citation) · [gmx_MMPBSA paper](https://doi.org/10.1021/acs.jctc.1c00645) · [PyMOL citation](https://pymol.org/support.html) · [pandas citations](https://pandas.pydata.org/about/citing.html) · [Matplotlib citations](https://matplotlib.org/stable/project/citing.html) · [seaborn paper](https://doi.org/10.21105/joss.03021) |
+| 可选 Agent 辅助 / Optional agent assistance | 根据期刊政策记录使用的工具、模型、版本、用途和作者复核过程。 / Record the tools, models, versions, tasks, and human review as required by the journal. [Nature editorial policy on AI](https://www.nature.com/nature-portfolio/editorial-policies/ai) · [Agent-assisted workflow](#agent-workflow) |
+
+### 参考文献 / Bibliography
 
 1. Trott O, Olson AJ. *AutoDock Vina: Improving the speed and accuracy of docking with a new scoring function, efficient optimization, and multithreading*. J Comput Chem. 2010. [DOI](https://doi.org/10.1002/jcc.21334)
 2. Eberhardt J, Santos-Martins D, Tillack AF, Forli S. *AutoDock Vina 1.2.0: New docking methods, expanded force field, and Python bindings*. J Chem Inf Model. 2021. [DOI](https://doi.org/10.1021/acs.jcim.1c00203)
@@ -1873,6 +1971,22 @@ Cite the versions and modules you used. The directory links official sites, manu
 18. Hunter JD. *Matplotlib: A 2D graphics environment*. Comput Sci Eng. 2007. [DOI](https://doi.org/10.1109/MCSE.2007.55)
 19. Waskom ML. *seaborn: Statistical data visualization*. J Open Source Softw. 2021. [DOI](https://doi.org/10.21105/joss.03021)
 
+20. Bell EW, Zhang Y. *DockRMSD: An open-source tool for atom mapping and RMSD calculation of symmetric molecules through graph isomorphism*. J Cheminform. 2019. [DOI](https://doi.org/10.1186/s13321-019-0362-7)
+21. O'Boyle NM, Banck M, James CA, Morley C, Vandermeersch T, Hutchison GR. *Open Babel: An open chemical toolbox*. J Cheminform. 2011. [DOI](https://doi.org/10.1186/1758-2946-3-33)
+22. Bussi G, Donadio D, Parrinello M. *Canonical sampling through velocity rescaling*. J Chem Phys. 2007. [DOI](https://doi.org/10.1063/1.2408420)
+23. Bernetti M, Bussi G. *Pressure control using stochastic cell rescaling*. J Chem Phys. 2020. [DOI](https://doi.org/10.1063/5.0020514)
+24. Gowers RJ, Linke M, Barnoud J, et al. *MDAnalysis: A Python package for the rapid analysis of molecular dynamics simulations*. Proc Python Sci Conf. 2016. [DOI](https://doi.org/10.25080/Majora-629e541a-00e)
+25. McKinney W. *Data structures for statistical computing in Python*. Proc Python Sci Conf. 2010. [DOI](https://doi.org/10.25080/Majora-92bf1922-00a)
+
+26. Kittelson KS, Martins ACF, Santos RP, et al. *Reproducibility, validation, and failure modes across classical and AI-driven molecular docking*. J Comput Aided Mol Des. 2026. [DOI](https://doi.org/10.1007/s10822-026-00849-8)
+
+### 项目反馈 / Feedback
+
+欢迎提交可复现的问题或更正。请附相关章节、软件版本、运行平台以及足以复现的最小示例。若教程对你的研究或教学有帮助，欢迎给仓库点 Star。  
+Corrections and reproducible issue reports are welcome. Include the relevant section, software versions, platform, and a minimal example. If the guide helps your research or teaching, consider starring the repository. [GitHub Issues](https://github.com/LuciferBioLab/docking-gromacs-tutorial/issues)
+
+[返回目录 / Back to contents](#contents)
+
 <a name="disclaimer"></a>
 
 ## 15. 免责声明 / Disclaimer
@@ -1881,8 +1995,8 @@ Cite the versions and modules you used. The directory links official sites, manu
 
 This independent repository is a reference for academic research and training. Check the example parameters, cutoffs, structures, figures, and commands against your research question, system, and computing environment. Docking scores, trajectory stability, and endpoint energies are model outputs. Experimental affinity, mechanism, and clinical conclusions require independent evidence. Third-party software, force fields, databases, and examples are governed by their own licenses, service terms, and citation policies. Listing a tool credits its contribution and implies no endorsement by its developers or institution.
 
-**验证范围 / Verification scope.** 命令依据上游手册与公开案例编写。已静态核查命令和文件衔接。CUDA 批量对接及两套力场的正式 MD 仍需在目标环境记录实跑结果。  
-The commands were assembled from upstream documentation and public examples. The commands and file handoffs were checked statically. CUDA batch docking and production MD for both force-field routes still need recorded runs on the target hardware.
+**验证范围 / Verification scope.** 示例命令与文件交接已依据上游手册和公开案例静态核查。CUDA 批量对接和两套力场的正式 MD 需在目标环境记录验收结果。Agent 与 Photoshop MCP 是根据上游文档整理的可选方案。  
+The example commands and file transfers were checked against upstream documentation and public examples. Record target-hardware verification for CUDA batch docking and production MD under each force-field protocol. The third-party Agent and MCP integrations are documented options.
 
 <a name="acknowledgments"></a>
 
@@ -1890,8 +2004,8 @@ The commands were assembled from upstream documentation and public examples. The
 
 感谢 AutoDock Vina、Uni-Dock、Molscrub、Meeko、RDKit、Open Babel、ACPYPE 和 GROMACS 的作者、维护者与贡献者。你们开放的源码、文档与示例让对接、位姿恢复、参数化和动力学流程可以被同行复核和复用。也感谢 AmberTools、CHARMM/CGenFF 与 Lemkul Lab 提供力场、参数化工具及转换资源。  
 
-感谢开源 PyMOL、MDAnalysis、gmx_MMPBSA、pandas、Matplotlib、seaborn、Inkscape 和 GIMP 社区提供分析、绘图与组图工具，感谢 conda-forge 维护安装包，以及 RCSB PDB、PubChem 和 BioExcel 提供公开数据和教学案例。欢迎在发表研究时引用实际使用的软件、数据和方法。  
+感谢开源 PyMOL、MDAnalysis、gmx_MMPBSA、pandas、Matplotlib、seaborn、Inkscape 和 GIMP 社区提供分析、绘图与组图工具，感谢 conda-forge 维护安装包，以及 RCSB PDB、PubChem 和 BioExcel 提供公开数据和教学案例。感谢 nature-skills、Superpowers 和 drmedia/photoshop-mcp 的维护者分享可选的编辑与排版工具。发表时请按实际使用的软件、数据和方法引用。  
 
 We thank the authors, maintainers, and contributors of AutoDock Vina, Uni-Dock, Molscrub, Meeko, RDKit, Open Babel, ACPYPE, and GROMACS. Their code, documentation, and examples make the workflow easier to inspect and reproduce. We also thank AmberTools, the CHARMM/CGenFF teams, and the Lemkul Lab for force fields, parameterization tools, and conversion resources.  
 
-We thank the open-source PyMOL, MDAnalysis, gmx_MMPBSA, pandas, Matplotlib, seaborn, Inkscape, and GIMP communities for their analysis and figure tools, conda-forge for packaging, and RCSB PDB, PubChem, and BioExcel for public data and examples. Please cite the software, datasets, and methods used in your research. [工具与上游仓库 / Tools and upstream repositories](#sources)
+We thank the open-source PyMOL, MDAnalysis, gmx_MMPBSA, pandas, Matplotlib, seaborn, Inkscape, and GIMP communities for their analysis and figure tools, conda-forge for packaging, and RCSB PDB, PubChem, and BioExcel for public data and examples. We also thank the maintainers of nature-skills, Superpowers, and drmedia/photoshop-mcp for sharing optional editing and layout tools. Cite the software, data, and methods used in your study. [工具与上游仓库 / Tools and upstream repositories](#sources)

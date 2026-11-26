@@ -11,7 +11,7 @@ Start with a receptor PDB and ligand SDF. Use **Molscrub** for protonation state
 
 Recover and review selected poses with **Meeko / RDKit**, then convert the verified SDF to MOL2 with **Open Babel**. Generate the protein topology with **GROMACS pdb2gmx** and use **AmberTools / ACPYPE** for GAFF2 + AM1-BCC in the AMBER workflow or **CGenFF** in the CHARMM workflow. Use **GROMACS** for system setup, equilibration, and production, then analyze trajectories and make figures with open-source **PyMOL**.
 
-[完整流程图 / Full workflow](#overview) · [网课错误示例 / Common mistakes](#tutorial-error-flow) · [官网与参考文献 / Sources](#sources)
+[完整流程图 / Full workflow](#overview) · [用到的工具 / Tools used](#toolchain) · [网课与本教程对比 / Workflow comparison](#chem3d-pymol-topology) · [方法依据 / Evidence](#method-evidence)
 
 适用体系为水溶液中的常规可溶蛋白与**一个非共价结合、有明确化学结构的有机小分子**。膜环境、结合所需的金属或辅因子、非标准残基和共价配体需要针对体系另行建模。对接分数用于筛选候选，轨迹用于分析所选模型在给定条件下的行为。实验结合亲和力与药效需要独立证据。
 
@@ -21,80 +21,132 @@ The baseline covers a soluble protein and **one well-defined, noncovalently boun
 
 ## 完整流程图 / Full workflow
 
-先用公开共晶结构验收所选对接引擎，再处理自己的受体和配体。对接引擎、MD 力场和 GROMACS 的 CPU/CUDA 设备可以独立选择。  
-Validate the selected docking engine on a public co-crystal structure first. Choose the docking engine, MD force field, and CPU/CUDA backend for GROMACS independently.
+从两条输入开始。受体按所选链和结构状态准备，配体按所选化学状态准备。对接引擎、MD 力场和 GROMACS 设备可以独立选择。首次使用先做[共晶重对接验收 / co-crystal redocking](#setup)。  
+Start from two inputs. Prepare the selected receptor structure and ligand chemical state. Choose the docking engine, force-field family, and GROMACS backend independently. Validate the engine on a co-crystal case first.
 
 ```mermaid
 flowchart TD
-    input["结构准备 · Molscrub"]
+    protein["`受体 PDB
+PyMOL · ADT 可选`"]
+    ligand["`配体 SDF
+Molscrub · RDKit`"]
+    prep["`制备 PDBQT
+Meeko`"]
     cpu["CPU · Vina"]
-    cuda["CUDA · Uni-Dock"]
-    pose["位姿恢复 · Meeko / RDKit"]
-    amber["AMBER + GAFF2"]
-    charmm["CHARMM + CGenFF"]
-    setup["建系和平衡 · GROMACS"]
-    md["试跑与生产"]
-    analysis["轨迹分析与出图"]
-    input --> cpu & cuda
-    cpu & cuda --> pose
-    pose --> amber & charmm
-    amber & charmm --> setup
-    setup --> md --> analysis
+    cuda["GPU · Uni‑Dock"]
+    restore["`恢复并核对 SDF
+Meeko · RDKit`"]
+    mol2["`Open Babel
+转换 MOL2`"]
+    amber["`AmberTools · ACPYPE
+GAFF2 / AM1-BCC`"]
+    charmm["`CGenFF
+CHARMM 配体参数`"]
+    assemble["`蛋白拓扑与原位组装
+GROMACS · pdb2gmx`"]
+    simulate["`建系、平衡、试跑、生产
+GROMACS · CPU / CUDA`"]
+    trajectory["`轨迹与口袋分析
+GROMACS · MDAnalysis`"]
+    energy["`可选端点能量
+gmx_MMPBSA`"]
+    figures["`结构图 · PyMOL
+曲线 · Pandas / Matplotlib`"]
+    protein & ligand --> prep
+    prep --> cpu & cuda
+    cpu & cuda --> restore
+    restore --> mol2
+    mol2 --> amber & charmm
+    amber & charmm --> assemble
+    assemble --> simulate
+    simulate --> trajectory
+    trajectory --> figures
+    trajectory -.-> energy
 
-    classDef common fill:#eaf2ff,stroke:#4777ad,color:#142a43,stroke-width:1.5px
+    classDef structure fill:#eaf2ff,stroke:#4777ad,color:#142a43,stroke-width:1.5px
     classDef docking fill:#e4f6f4,stroke:#3f8b80,color:#133b36,stroke-width:1.5px
+    classDef checked fill:#fff2d9,stroke:#ac7b32,color:#413016,stroke-width:1.5px
     classDef forcefield fill:#f0eafe,stroke:#846caf,color:#362554,stroke-width:1.5px
-    classDef review fill:#fff2d9,stroke:#ac7b32,color:#413016,stroke-width:1.5px
-    classDef result fill:#184c46,stroke:#184c46,color:#ffffff,stroke-width:1.5px
-    class input,setup,md common
+    classDef output fill:#e1f2ed,stroke:#3c766e,color:#143d38,stroke-width:1.5px
+    class protein,ligand,prep,assemble,simulate structure
     class cpu,cuda docking
+    class restore,mol2 checked
     class amber,charmm forcefield
-    class pose review
-    class analysis result
+    class trajectory,figures,energy output
 ```
+
+[查看两条路线的对比图 / Compare with the tutorial shortcut](#chem3d-pymol-topology)
 
 <details>
 <summary>Full workflow in English</summary>
 
 ```mermaid
 flowchart TD
-    input["Structure prep · Molscrub"]
+    protein["`Receptor PDB
+PyMOL · optional ADT`"]
+    ligand["`Ligand SDF
+Molscrub · RDKit`"]
+    prep["`Prepare PDBQT
+Meeko`"]
     cpu["CPU · Vina"]
-    cuda["CUDA · Uni-Dock"]
-    pose["Pose recovery · Meeko / RDKit"]
-    amber["AMBER + GAFF2"]
-    charmm["CHARMM + CGenFF"]
-    setup["Setup and equilibration · GROMACS"]
-    md["Pilot and production"]
-    analysis["Trajectory analysis and figures"]
-    input --> cpu & cuda
-    cpu & cuda --> pose
-    pose --> amber & charmm
-    amber & charmm --> setup
-    setup --> md --> analysis
+    cuda["GPU · Uni‑Dock"]
+    restore["`Recover and check SDF
+Meeko · RDKit`"]
+    mol2["`Open Babel
+Convert to MOL2`"]
+    amber["`AmberTools · ACPYPE
+GAFF2 / AM1-BCC`"]
+    charmm["`CGenFF
+CHARMM ligand`"]
+    assemble["`Protein and assembly
+GROMACS · pdb2gmx`"]
+    simulate["`Setup to production
+GROMACS · CPU / CUDA`"]
+    trajectory["`Trajectory and contacts
+GROMACS · MDAnalysis`"]
+    energy["`Optional endpoint energy
+gmx_MMPBSA`"]
+    figures["`Structures · PyMOL
+Plots · Pandas / Matplotlib`"]
+    protein & ligand --> prep
+    prep --> cpu & cuda
+    cpu & cuda --> restore
+    restore --> mol2
+    mol2 --> amber & charmm
+    amber & charmm --> assemble
+    assemble --> simulate
+    simulate --> trajectory
+    trajectory --> figures
+    trajectory -.-> energy
 
-    classDef common fill:#eaf2ff,stroke:#4777ad,color:#142a43,stroke-width:1.5px
+    classDef structure fill:#eaf2ff,stroke:#4777ad,color:#142a43,stroke-width:1.5px
     classDef docking fill:#e4f6f4,stroke:#3f8b80,color:#133b36,stroke-width:1.5px
+    classDef checked fill:#fff2d9,stroke:#ac7b32,color:#413016,stroke-width:1.5px
     classDef forcefield fill:#f0eafe,stroke:#846caf,color:#362554,stroke-width:1.5px
-    classDef review fill:#fff2d9,stroke:#ac7b32,color:#413016,stroke-width:1.5px
-    classDef result fill:#184c46,stroke:#184c46,color:#ffffff,stroke-width:1.5px
-    class input,setup,md common
+    classDef output fill:#e1f2ed,stroke:#3c766e,color:#143d38,stroke-width:1.5px
+    class protein,ligand,prep,assemble,simulate structure
     class cpu,cuda docking
+    class restore,mol2 checked
     class amber,charmm forcefield
-    class pose review
-    class analysis result
+    class trajectory,figures,energy output
 ```
 
 </details>
 
-| 阶段 / Stage | 操作与关键产物 / Actions and key outputs |
-| --- | --- |
-| [01–02 部署与验收 / Setup and validation](#setup) | Linux 或 Windows + WSL2。用 1IEP 复跑 CPU 或 CUDA 对接，保存日志、位姿及共晶 RMSD。 / Set up Linux or Windows + WSL2. Run the 1IEP benchmark on CPU or CUDA and save logs, poses, and co-crystal RMSD. |
-| [03–04 准备与对接 / Prepare and dock](#docking) | 保留受体原始坐标和配体 SDF。用 PyMOL 检查受体，Molscrub 准备配体化学状态，RDKit 核对后用 Meeko 制备 PDBQT。按口袋证据建盒，用 Vina 或 Uni-Dock 批量筛选并复筛。 / Retain receptor coordinates and the ligand SDF. Inspect the receptor in PyMOL, prepare ligand states with Molscrub, check them with RDKit, prepare PDBQT with Meeko, define the pocket, and screen with Vina or Uni-Dock before follow-up docking. |
-| [05 位姿恢复 / Pose recovery](#pose-handoff) | 用 Meeko 从 PDBQT 映射恢复 SDF，也可接收 Uni-Dock 原生 SDF。用 RDKit 与原始 SDF 核对化学图，再检查原位坐标。 / Recover SDF from PDBQT mappings with Meeko or use native Uni-Dock SDF. Compare the chemical graph with the source SDF using RDKit, then check in-place coordinates. |
-| [06–07 参数化与拓扑 / Parameters and topology](#topology) | Open Babel 转 MOL2。用 `pdb2gmx` 生成蛋白拓扑，AmberTools / ACPYPE 或 CGenFF 生成配体拓扑。原位合并后核对 `complex_raw.gro`、`topol.top` 和原子顺序。 / Convert to MOL2 with Open Babel, prepare the protein topology with `pdb2gmx`, and obtain ligand parameters with AmberTools / ACPYPE or CGenFF. Assemble in place and verify `complex_raw.gro`, `topol.top`, and atom order. |
-| [08–10 建系与模拟 / Build and simulate](#simulation) | 建盒 → 加水加盐 → EM → NVT → NPT → 去位置限制的短试跑 → pilot → 生产。保存各阶段 TPR、日志和检查点，按独立种子做重复。 / Box → solvate and add ions → EM → NVT → NPT → unrestrained short test → pilot → production. Retain stage TPRs, logs, and checkpoints and use independent seeds for replicates. |
-| [11–12 分析与归档 / Analyze and archive](#analysis) | 处理 PBC，检查蛋白和配体位移、接触与代表结构，可用 MDAnalysis 分析、用 PyMOL 出图、用 gmx_MMPBSA 作端点能量估算。归档输入、参数、轨迹和分析分组。 / Correct periodic images, assess protein and ligand motion, contacts and representative structures, with optional MDAnalysis analysis, PyMOL figures, and gmx_MMPBSA endpoint estimates. Archive inputs, settings, trajectories, and analysis selections. |
+<a name="toolchain"></a>
+
+### 用到了哪些工具 / Tools used
+
+| 步骤 / Step | 工具与职责 / Tools and roles | 关键文件或检查 / Files or checks |
+| --- | --- | --- |
+| [01–02 部署与验收 / Setup and validation](#setup) | Miniforge/Conda 管理环境。Linux 为服务器方案，Windows 可用 WSL2 或原生 Vina。NVIDIA 驱动及 CUDA 支持 GPU 工具。 / Miniforge/Conda manages environments. Use Linux on servers and WSL2 or native Vina on Windows. NVIDIA drivers and CUDA support the GPU tools. | 1IEP 共晶重对接、日志、重原子 RMSD。 / 1IEP co-crystal redocking, logs, and heavy-atom RMSD. |
+| [03 受体准备 / Receptor preparation](#docking) | RCSB PDB 提供源结构。开源 PyMOL 审查链、口袋和共晶配体。Meeko 制备对接受体，AutoDockTools 可辅助处理旧项目或查看 GPF。 / Use RCSB PDB for source structures and open-source PyMOL to inspect chains, pockets, and the co-crystal ligand. Meeko prepares the docking receptor. AutoDockTools can assist with legacy inputs or GPF inspection. | 审核后的蛋白 PDB、受体 PDBQT、搜索盒。 / Reviewed protein PDB, receptor PDBQT, box. |
+| [03 配体准备 / Ligand preparation](#docking) | PubChem 等提供原始 SDF。Molscrub 生成质子化、互变异构和 3D 候选。RDKit 核对化学图、手性和净电荷，Meeko 输出带映射的 PDBQT。 / PubChem or another documented source provides the SDF. Molscrub generates protonation states, tautomers, and 3D candidates. RDKit checks graph, stereochemistry, and net charge. Meeko writes mapped PDBQT. | 原始 SDF、选定状态 SDF、配体 PDBQT。 / Source and selected-state SDFs, ligand PDBQT. |
+| [04 对接与复筛 / Docking and follow-up](#docking) | AutoDock Vina 用 CPU 多线程，Uni-Dock 用 NVIDIA CUDA。用结构查看器检查位姿和口袋接触。 / AutoDock Vina uses CPU threads and Uni-Dock uses NVIDIA CUDA. Review poses and pocket contacts in a structure viewer. | 对接位姿、日志、候选 ID、搜索盒和种子。 / Poses, logs, candidate IDs, box, and seeds. |
+| [05 恢复与质检 / Pose recovery and QC](#pose-handoff) | Meeko 从 PDBQT 映射恢复 SDF，Uni-Dock 也可直接输出 SDF。RDKit 对照原分子，Open Babel 转 MOL2 并辅助检查重原子几何。 / Meeko uses PDBQT mappings to recover SDF. Uni-Dock also supports native SDF output. RDKit compares the graph with the source and Open Babel converts to MOL2 and assists with geometry checks. | 入选位姿的 SDF、MOL2、原子映射及绝对坐标核对。 / Selected pose SDF, MOL2, atom mapping, and absolute coordinate check. |
+| [06–07 两套力场与组装 / Force fields and assembly](#topology) | 蛋白由 GROMACS `pdb2gmx` 参数化。AMBER 配体采用 AmberTools（`antechamber`、`sqm`、`parmchk2`、`tleap`）与 ACPYPE；CHARMM 配体采用 CGenFF 与 Lemkul Lab 转换器。 / GROMACS `pdb2gmx` parameterizes the protein. The AMBER ligand uses AmberTools and ACPYPE. The CHARMM ligand uses CGenFF and the Lemkul Lab converter. | AMBER99SB-ILDN + GAFF2/AM1-BCC 或 CHARMM36m + CGenFF，坐标和拓扑原子顺序一致。 / Compatible protein and ligand parameters and matching atom order. |
+| [08–10 建系与生产 / Setup and production](#simulation) | GROMACS 完成建盒、加水加盐、EM、NVT、NPT、解除位置限制后试跑、生产和检查点续跑。 / GROMACS handles boxing, solvation, ions, EM, NVT, NPT, unrestrained tests, production, and restarts. | MDP、TPR、CPT、EDR、XTC 与日志。 / MDP, TPR, CPT, EDR, XTC, and logs. |
+| [11–12 分析与出图 / Analysis and figures](#analysis) | GROMACS 处理 PBC 和指标，MDAnalysis 做自定义轨迹分析，gmx_MMPBSA 可做端点能量估算，开源 PyMOL 出结构图，Pandas/Matplotlib 整理统计数据和画曲线。 / GROMACS handles periodic images and standard metrics. MDAnalysis supports custom trajectory analyses, gmx_MMPBSA optional endpoint estimates, open-source PyMOL structure figures, and Pandas/Matplotlib data processing and plots. | XVG、代表结构、PNG，及可选能量结果。 / XVG files, representative structures, PNG figures, and optional energy estimates. |
 
 ## 网课常见误操作 / Common tutorial mistakes
 
@@ -161,24 +213,52 @@ flowchart TD
 
 <a name="chem3d-pymol-topology"></a>
 
-### 具体误操作：Chem3D → AutoDockTools → PyMOL → 配体拓扑
+### 网课错误方法与本教程路线 / Tutorial shortcut and reviewed workflow
 
-先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。网课中的问题出现在下一步：把选中的对接位姿在 PyMOL 中直接另存为 MOL2，随后把它交给 ACPYPE 或其他参数化工具生成 `lig.top`、`lig.itp`。
+先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列保留原始结构和对接位姿，先恢复 SDF 并核对化学结构，再转 MOL2 和参数化。
 
 ```mermaid
 flowchart TD
-    Chem3D("Chem3D → MOL2") --> ADT("ADT → PDBQT")
-    ADT --> Vina("Vina → output.pdbqt")
-    Vina --> Save("PyMOL → MOL2")
-    Save --> Top("生成 lig.top")
-    Save -.-> Missing("化学信息未核对")
+    start["同一个小分子配体"]
+    wrong["网课误操作"]
+    right["本教程路线"]
+    w1["`Chem3D
+导出 MOL2`"]
+    r1["`Molscrub · RDKit
+准备并核对 SDF`"]
+    w2["`AutoDockTools
+制备 PDBQT`"]
+    r2["`Meeko
+制备 PDBQT`"]
+    w3["`Vina
+output.pdbqt`"]
+    r3["`Vina / Uni‑Dock
+对接位姿`"]
+    w4["`PyMOL
+直接另存 MOL2`"]
+    r4["`Meeko · RDKit
+恢复 SDF 并核对`"]
+    w5["`直接参数化
+生成 lig.top`"]
+    r5["`Open Babel
+保留位姿转 MOL2`"]
+    w6["化学结构未经核对"]
+    r6["`ACPYPE / CGenFF
+生成配体拓扑`"]
+    start --> wrong & right
+    wrong --> w1 --> w2 --> w3 --> w4 --> w5 --> w6
+    right --> r1 --> r2 --> r3 --> r4 --> r5 --> r6
 
-    classDef prepared fill:#eef5fc,stroke:#63809f,color:#152e48
-    classDef shortcut fill:#fff2eb,stroke:#a34d37,color:#40251b
-    classDef risk fill:#a23542,stroke:#80242e,color:#ffffff
-    class Chem3D,ADT,Vina prepared
-    class Save,Top shortcut
-    class Missing risk
+    classDef source fill:#edf3fc,stroke:#5b7fa9,color:#18324f,stroke-width:1.5px
+    classDef legacy fill:#fff2ed,stroke:#b26953,color:#462d25,stroke-width:1.5px
+    classDef reviewed fill:#e4f6ef,stroke:#548f7c,color:#164436,stroke-width:1.5px
+    classDef risk fill:#9b3643,stroke:#842933,color:#ffffff,stroke-width:1.5px
+    classDef approved fill:#176154,stroke:#176154,color:#ffffff,stroke-width:1.5px
+    class start source
+    class w1,w2,w3,w5 legacy
+    class r1,r2,r3,r5 reviewed
+    class wrong,w4,w6 risk
+    class right,r4,r6 approved
 ```
 
 **风险出在对接到 MD 的交接。** Chem3D 可以用于构象准备，MOL2 也可以作为参数化输入。PDBQT 保存对接坐标、原子类型和部分电荷，缺少用于可靠还原完整键级和形式电荷的信息。非极性氢也常在制备时合并。PyMOL 另存为 MOL2 时，即使重原子位置看起来一致，也需要对照原始配体检查键级、芳香性、质子化状态和净电荷。参数化完成只说明工具处理了该输入，化学状态仍需单独核对。MD 的部分电荷应按所选力场方案生成。
@@ -186,24 +266,52 @@ flowchart TD
 **可靠的交接方法。** 保留与对接输入同一化学状态的原始 SDF 或 MOL2。用 Meeko 制备配体时保留 `REMARK SMILES` 和 `REMARK SMILES IDX`，从所选对接位姿恢复 SDF，再逐原子核对重原子坐标、键级、手性和净电荷。确需 MOL2 时只转换格式，保留已核对的位姿，最后用所选的 AMBER 或 CHARMM 路线参数化。旧版 ADT 的输出若缺少 Meeko 映射，可用原始结构做可靠的原子映射。无法确认映射时，用 Meeko 重新制备并对接。
 
 <details>
-<summary>English version: Chem3D → ADT → PyMOL → ligand topology</summary>
+<summary>Workflow comparison in English</summary>
 
 The tutorial route optimizes the ligand in Chem3D, exports MOL2, and prepares PDBQT with AutoDockTools (ADT). Vina then writes `output.pdbqt`. The shortcut is to save the chosen pose directly as MOL2 in PyMOL and use it for `lig.top` or `lig.itp` without checking the chemistry.
 
 ```mermaid
 flowchart TD
-    Chem3D("Chem3D → MOL2") --> ADT("ADT → PDBQT")
-    ADT --> Vina("Vina → output.pdbqt")
-    Vina --> Save("PyMOL → MOL2")
-    Save --> Top("Build lig.top")
-    Save -.-> Missing("Skip chemistry QC")
+    start["Same small-molecule ligand"]
+    wrong["Tutorial shortcut"]
+    right["Reviewed workflow"]
+    w1["`Chem3D
+Export MOL2`"]
+    r1["`Molscrub · RDKit
+Prepare and check SDF`"]
+    w2["`AutoDockTools
+Prepare PDBQT`"]
+    r2["`Meeko
+Prepare PDBQT`"]
+    w3["`Vina
+output.pdbqt`"]
+    r3["`Vina / Uni‑Dock
+Docked poses`"]
+    w4["`PyMOL
+Save MOL2 directly`"]
+    r4["`Meeko · RDKit
+Recover and check SDF`"]
+    w5["`Parameterize directly
+Build lig.top`"]
+    r5["`Open Babel
+Convert pose to MOL2`"]
+    w6["Chemistry unchecked"]
+    r6["`ACPYPE / CGenFF
+Build ligand topology`"]
+    start --> wrong & right
+    wrong --> w1 --> w2 --> w3 --> w4 --> w5 --> w6
+    right --> r1 --> r2 --> r3 --> r4 --> r5 --> r6
 
-    classDef prepared fill:#eef5fc,stroke:#63809f,color:#152e48
-    classDef shortcut fill:#fff2eb,stroke:#a34d37,color:#40251b
-    classDef risk fill:#a23542,stroke:#80242e,color:#ffffff
-    class Chem3D,ADT,Vina prepared
-    class Save,Top shortcut
-    class Missing risk
+    classDef source fill:#edf3fc,stroke:#5b7fa9,color:#18324f,stroke-width:1.5px
+    classDef legacy fill:#fff2ed,stroke:#b26953,color:#462d25,stroke-width:1.5px
+    classDef reviewed fill:#e4f6ef,stroke:#548f7c,color:#164436,stroke-width:1.5px
+    classDef risk fill:#9b3643,stroke:#842933,color:#ffffff,stroke-width:1.5px
+    classDef approved fill:#176154,stroke:#176154,color:#ffffff,stroke-width:1.5px
+    class start source
+    class w1,w2,w3,w5 legacy
+    class r1,r2,r3,r5 reviewed
+    class wrong,w4,w6 risk
+    class right,r4,r6 approved
 ```
 
 Chem3D can prepare conformers, and MOL2 can be valid input for parameterization. PDBQT stores docking coordinates, atom types, and partial charges, with insufficient information to reliably restore all bond orders and formal charges. Nonpolar hydrogens are also commonly merged during preparation. Even when the heavy-atom position looks unchanged, verify bond orders, aromaticity, protonation, and net charge against the original ligand. Generate MD partial charges using the chosen force-field protocol.
@@ -366,8 +474,8 @@ Use the checks and export procedure in step 05 for the GPU output. After a succe
 **验收 / Check.** 确认 PDBQT 有 Vina 分数和姿态，SDF 可以读取。分别用公开参考结果检查 CPU 和 GPU 的位姿与关键接触。正式做共晶重对接时，先把参考与对接结构置于同一受体坐标系，比较带对称校正的重原子 RMSD，保持配体在各自原位。约 2 Å 是常用参考值。可另用 BioExcel 的公开案例练习 MD 复合物建系。  
 Confirm that the PDBQT contains scores and poses and that the SDF opens. Compare the CPU and GPU poses and key contacts separately with the upstream example. For quantitative redocking, use a shared receptor frame and calculate symmetry-corrected ligand heavy-atom RMSD with the poses kept in place. About 2 Å is a common reference. For a separate MD setup example, use the public BioExcel protein–ligand tutorial. [Scripps expected results](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#expected-results) · [BioExcel complex setup](https://github.com/bioexcel/biobb_wf_protein-complex_md_setup)
 
-**定量重对接 / Quantitative redocking.** 从 1IEP 的配体实例下载含**晶体坐标**的伊马替尼 SDF，保存为 `1iep_crystal_ligand.sdf`。在结构查看器里确认其链/构象对应受体，并把两者置于同一受体坐标系。先核对化学身份，再用 Open Babel 的 `obrms` 对每个对接姿态计算重原子 RMSD（Å）。`obrms` 按重原子连接匹配并考虑等价映射，`-m` 会对配体再拟合，此处省略该选项。  
-Download the imatinib ligand instance with its **experimental coordinates** from 1IEP and save it as `1iep_crystal_ligand.sdf`. Check the chain or conformer and shared receptor frame in a structure viewer. Verify chemical identity before using Open Babel's `obrms` to calculate heavy-atom RMSD (Å) for each docked pose. `obrms` searches equivalent mappings by heavy-atom connectivity. Omit `-m` to preserve each pose in the receptor frame. [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
+**定量重对接 / Quantitative redocking.** 在 RCSB 1IEP 的 **Small Molecules → STI → Instance Coordinates** 下载对应链的 SDF，保存为 `1iep_crystal_ligand.sdf`。在结构查看器里确认其链/构象对应受体，并把两者置于同一受体坐标系。先核对化学身份，再用 Open Babel 的 `obrms` 对每个对接姿态计算重原子 RMSD（Å）。`obrms` 按重原子连接匹配并考虑等价映射，`-m` 会对配体再拟合，此处省略该选项。  
+In RCSB 1IEP, select **Small Molecules → STI → Instance Coordinates** and download the SDF for the matching chain and save it as `1iep_crystal_ligand.sdf`. Check the chain or conformer and shared receptor frame in a structure viewer. Verify chemical identity before using Open Babel's `obrms` to calculate heavy-atom RMSD (Å) for each docked pose. `obrms` searches equivalent mappings by heavy-atom connectivity. Omit `-m` to preserve each pose in the receptor frame. [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
 
 ```bash
 conda activate docktools
@@ -1487,6 +1595,18 @@ conda run -n docktools python -m pip freeze > qc/docktools-pip.txt
 ```
 
 <a name="sources"></a>
+
+<a name="method-evidence"></a>
+
+## 方法选择的研究依据 / Evidence for the workflow
+
+| 技术选择 / Method | 论文与官方操作依据 / Papers and official instructions |
+| --- | --- |
+| CPU 与 CUDA 批量对接 / CPU and CUDA batch docking | Vina 基础论文及 1.2 论文给出 CPU 引擎、评分和搜索方法，Uni-Dock 论文说明 GPU 筛选实现。用相同输入与共晶参考分别验证两种引擎。 / The Vina papers describe its scoring and search, while the Uni-Dock paper describes its GPU screening implementation. Validate the engines separately against the same co-crystal reference. [Vina 1.2 paper](https://doi.org/10.1021/acs.jcim.1c00203) · [Uni-Dock paper](https://doi.org/10.1021/acs.jctc.2c01145) · [Vina batch manual](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html) · [Docking validation review](https://pubmed.ncbi.nlm.nih.gov/42223532/) |
+| 化学状态与位姿恢复 / Chemical state and pose recovery | Molscrub 手册说明状态生成，Meeko 论文与导出文档说明如何用映射还原分子，RDKit 文档支持独立读取和比较化学图。 / The Molscrub manual covers state generation, the Meeko paper and export docs explain mapped recovery, and the RDKit guide covers independent chemical-graph checks. [Molscrub CLI](https://molscrub.readthedocs.io/en/latest/cli.html) · [Meeko paper](https://doi.org/10.1021/acs.jcim.5c02271) · [Meeko export](https://meeko.readthedocs.io/en/develop/export_usage.html) · [RDKit guide](https://www.rdkit.org/docs/GettingStartedInPython.html) |
+| AMBER99SB-ILDN + GAFF2 / AM1-BCC | 蛋白、配体与电荷模型分别引用；GAFF2 的具体文件和版本以实际 AmberTools 手册为准。 / Cite the protein force field, ligand force field, and charge model separately. Use the selected AmberTools manual for the GAFF2 implementation. [AMBER99SB-ILDN](https://doi.org/10.1002/prot.22711) · [GAFF paper](https://doi.org/10.1002/jcc.20035) · [AM1-BCC](https://doi.org/10.1002/jcc.10128) · [ACPYPE](https://doi.org/10.1186/1756-0500-5-367) · [Amber manuals](https://ambermd.org/Manuals.php) |
+| CHARMM36m + CGenFF | CHARMM36m 与 CGenFF 分别覆盖蛋白与有机小分子。力场移植、stream 版本和罚分处理以官方文档为准。 / CHARMM36m and CGenFF cover the protein and organic ligand, respectively. Use upstream docs to select the matching port and stream version and assess penalties. [CHARMM36m](https://doi.org/10.1038/nmeth.4067) · [CGenFF](https://doi.org/10.1002/jcc.21367) · [MacKerell force-field releases](https://mackerell.umaryland.edu/charmm_ff.shtml) · [CGenFF usage](https://docs.silcsbio.com/2026/cgenff/usage.html) |
+| 动力学验收与可选能量估算 / MD checks and optional endpoint energies | GROMACS 手册支持命令和续跑设置。复现性核对表支持记录采样与独立重复。gmx_MMPBSA 论文说明端点计算方法。 / The GROMACS manual documents setup and restart commands. The reproducibility checklist guides sampling and replicate reporting. The gmx_MMPBSA paper describes the endpoint calculation. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [Managing simulations](https://manual.gromacs.org/2026.3/user-guide/managing-simulations.html) · [MD reproducibility checklist](https://doi.org/10.1038/s42003-023-04653-0) · [gmx_MMPBSA paper](https://doi.org/10.1021/acs.jctc.1c00645) |
 
 ## 13. 官网、手册与上游 GitHub / Official documentation and upstream GitHub
 

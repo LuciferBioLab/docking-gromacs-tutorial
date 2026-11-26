@@ -5,13 +5,13 @@
 
 从受体 PDB 和配体 SDF 开始。用 **Molscrub** 准备配体的质子化状态、互变异构体和 3D 构象，用 **RDKit** 审核化学结构，用 **Meeko** 制备对接输入。使用 **AutoDock Vina（CPU）** 或 **Uni-Dock（NVIDIA CUDA）** 批量对接。
 
-通过 **Meeko / RDKit** 恢复并核对入选位姿，**Open Babel** 将审核过的 SDF 转为 MOL2。蛋白拓扑由 **GROMACS pdb2gmx** 生成，配体在 AMBER 路线上用 **AmberTools / ACPYPE** 生成 GAFF2 + AM1-BCC 参数，在 CHARMM 路线上用 **CGenFF**。复合物在 **GROMACS** 中完成建系、平衡与生产模拟，随后分析轨迹，并可用开源 **PyMOL** 出图。
+对接到 MD 有两条交接路线。**新项目用 Meeko 保留映射、导出 SDF，再用 RDKit 核对**。**旧 ADT 结果用同一化学状态的原始 SDF 作模板，由 RDKit 按原子映射回填对接坐标**。两条路线通过化学与坐标检查后，用 **Open Babel** 转为 MOL2。蛋白拓扑由 **GROMACS pdb2gmx** 生成，配体在 AMBER 路线上用 **AmberTools / ACPYPE** 生成 GAFF2 + AM1-BCC 参数，在 CHARMM 路线上用 **CGenFF**。复合物在 **GROMACS** 中完成建系、平衡与生产模拟，随后分析轨迹，并可用开源 **PyMOL** 出图。
 
 Start with a receptor PDB and ligand SDF. Use **Molscrub** for protonation states, tautomers, and 3D conformers, **RDKit** for chemical review, and **Meeko** for docking inputs. Run batch docking with **AutoDock Vina (CPU)** or **Uni-Dock (NVIDIA CUDA)**.
 
-Recover and review selected poses with **Meeko / RDKit**, then convert the verified SDF to MOL2 with **Open Babel**. Generate the protein topology with **GROMACS pdb2gmx** and use **AmberTools / ACPYPE** for GAFF2 + AM1-BCC in the AMBER workflow or **CGenFF** in the CHARMM workflow. Use **GROMACS** for system setup, equilibration, and production, then analyze trajectories and make figures with open-source **PyMOL**.
+Two routes transfer poses to MD. **For new jobs, retain Meeko mappings, export SDF, and check it with RDKit. For an existing ADT result, use the original SDF for the same chemical state and map the docked coordinates onto it with RDKit.** After checking chemistry and coordinates, use **Open Babel** to convert the verified SDF to MOL2. Generate the protein topology with **GROMACS pdb2gmx** and use **AmberTools / ACPYPE** for GAFF2 + AM1-BCC in the AMBER workflow or **CGenFF** in the CHARMM workflow. Use **GROMACS** for system setup, equilibration, and production, then analyze trajectories and make figures with open-source **PyMOL**.
 
-[完整流程图 / Full workflow](#overview) · [用到的工具 / Tools used](#toolchain) · [网课与本教程对比 / Workflow comparison](#chem3d-pymol-topology) · [方法依据 / Evidence](#method-evidence)
+[完整流程图 / Full workflow](#overview) · [两条 MD 交接路线 / Two pose handoffs](#pose-handoff) · [用到的工具 / Tools used](#toolchain) · [网课与本教程对比 / Workflow comparison](#chem3d-pymol-topology) · [方法依据 / Evidence](#method-evidence)
 
 适用体系为水溶液中的常规可溶蛋白与**一个非共价结合、有明确化学结构的有机小分子**。膜环境、结合所需的金属或辅因子、非标准残基和共价配体需要针对体系另行建模。对接分数用于筛选候选，轨迹用于分析所选模型在给定条件下的行为。实验结合亲和力与药效需要独立证据。
 
@@ -27,35 +27,50 @@ Start from two inputs. Prepare the selected receptor structure and ligand chemic
 ```mermaid
 flowchart TD
     protein["`受体 PDB
-PyMOL · ADT 可选`"]
+PyMOL
+ADT 可选`"]
     ligand["`配体 SDF
-Molscrub · RDKit`"]
+Molscrub
+RDKit`"]
     prep["`制备 PDBQT
-Meeko`"]
+Meeko 或 ADT`"]
     cpu["CPU · Vina"]
     cuda["GPU · Uni‑Dock"]
-    restore["`恢复并核对 SDF
-Meeko · RDKit`"]
+    restore["选择对接位姿"]
+    mapped["`A · Meeko 映射
+导出 SDF`"]
+    legacy["`B · 原始 SDF
+RDKit 回填坐标`"]
+    verified["`SDF 化学与坐标
+质检通过`"]
     mol2["`Open Babel
 转换 MOL2`"]
-    amber["`AmberTools · ACPYPE
-GAFF2 / AM1-BCC`"]
-    charmm["`CGenFF
-CHARMM 配体参数`"]
-    assemble["`蛋白拓扑与原位组装
-GROMACS · pdb2gmx`"]
-    simulate["`建系、平衡、试跑、生产
-GROMACS · CPU / CUDA`"]
+    amber["`AmberTools
+ACPYPE
+GAFF2`"]
+    charmm["`CHARMM36m
+CGenFF
+配体参数`"]
+    assemble["`拓扑与组装
+pdb2gmx`"]
+    simulate["`GROMACS
+建系 · 平衡
+试跑 · 生产
+CPU / CUDA`"]
     trajectory["`轨迹与口袋分析
-GROMACS · MDAnalysis`"]
+GROMACS
+MDAnalysis`"]
     energy["`可选端点能量
 gmx_MMPBSA`"]
-    figures["`结构图 · PyMOL
-曲线 · Pandas / Matplotlib`"]
+    figures["`结构图与曲线
+PyMOL
+Pandas
+Matplotlib`"]
     protein & ligand --> prep
     prep --> cpu & cuda
     cpu & cuda --> restore
-    restore --> mol2
+    restore --> mapped & legacy
+    mapped & legacy --> verified --> mol2
     mol2 --> amber & charmm
     amber & charmm --> assemble
     assemble --> simulate
@@ -70,7 +85,7 @@ gmx_MMPBSA`"]
     classDef output fill:#e1f2ed,stroke:#3c766e,color:#143d38,stroke-width:1.5px
     class protein,ligand,prep,assemble,simulate structure
     class cpu,cuda docking
-    class restore,mol2 checked
+    class restore,mapped,legacy,verified,mol2 checked
     class amber,charmm forcefield
     class trajectory,figures,energy output
 ```
@@ -83,35 +98,51 @@ gmx_MMPBSA`"]
 ```mermaid
 flowchart TD
     protein["`Receptor PDB
-PyMOL · optional ADT`"]
+PyMOL
+Optional ADT`"]
     ligand["`Ligand SDF
-Molscrub · RDKit`"]
+Molscrub
+RDKit`"]
     prep["`Prepare PDBQT
-Meeko`"]
+Meeko or ADT`"]
     cpu["CPU · Vina"]
     cuda["GPU · Uni‑Dock"]
-    restore["`Recover and check SDF
-Meeko · RDKit`"]
+    restore["Select a docked pose"]
+    mapped["`A · Meeko mapping
+Export SDF`"]
+    legacy["`B · Original SDF
+RDKit coordinates`"]
+    verified["`SDF checks
+Graph and pose`"]
     mol2["`Open Babel
 Convert to MOL2`"]
-    amber["`AmberTools · ACPYPE
-GAFF2 / AM1-BCC`"]
-    charmm["`CGenFF
-CHARMM ligand`"]
-    assemble["`Protein and assembly
-GROMACS · pdb2gmx`"]
-    simulate["`Setup to production
-GROMACS · CPU / CUDA`"]
-    trajectory["`Trajectory and contacts
-GROMACS · MDAnalysis`"]
+    amber["`AmberTools
+ACPYPE
+GAFF2`"]
+    charmm["`CHARMM36m
+CGenFF
+Ligand parameters`"]
+    assemble["`Topology and merge
+pdb2gmx`"]
+    simulate["`GROMACS
+Setup
+Equilibration
+Pilot and production
+CPU / CUDA`"]
+    trajectory["`Trajectory analysis
+GROMACS
+MDAnalysis`"]
     energy["`Optional endpoint energy
 gmx_MMPBSA`"]
-    figures["`Structures · PyMOL
-Plots · Pandas / Matplotlib`"]
+    figures["`Figures
+PyMOL
+Pandas
+Matplotlib`"]
     protein & ligand --> prep
     prep --> cpu & cuda
     cpu & cuda --> restore
-    restore --> mol2
+    restore --> mapped & legacy
+    mapped & legacy --> verified --> mol2
     mol2 --> amber & charmm
     amber & charmm --> assemble
     assemble --> simulate
@@ -126,7 +157,7 @@ Plots · Pandas / Matplotlib`"]
     classDef output fill:#e1f2ed,stroke:#3c766e,color:#143d38,stroke-width:1.5px
     class protein,ligand,prep,assemble,simulate structure
     class cpu,cuda docking
-    class restore,mol2 checked
+    class restore,mapped,legacy,verified,mol2 checked
     class amber,charmm forcefield
     class trajectory,figures,energy output
 ```
@@ -143,7 +174,7 @@ Plots · Pandas / Matplotlib`"]
 | [03 受体准备 / Receptor preparation](#docking) | RCSB PDB 提供源结构。开源 PyMOL 审查链、口袋和共晶配体。Meeko 制备对接受体，AutoDockTools 可辅助处理旧项目或查看 GPF。 / Use RCSB PDB for source structures and open-source PyMOL to inspect chains, pockets, and the co-crystal ligand. Meeko prepares the docking receptor. AutoDockTools can assist with legacy inputs or GPF inspection. | 审核后的蛋白 PDB、受体 PDBQT、搜索盒。 / Reviewed protein PDB, receptor PDBQT, box. |
 | [03 配体准备 / Ligand preparation](#docking) | PubChem 等提供原始 SDF。Molscrub 生成质子化、互变异构和 3D 候选。RDKit 核对化学图、手性和净电荷，Meeko 输出带映射的 PDBQT。 / PubChem or another documented source provides the SDF. Molscrub generates protonation states, tautomers, and 3D candidates. RDKit checks graph, stereochemistry, and net charge. Meeko writes mapped PDBQT. | 原始 SDF、选定状态 SDF、配体 PDBQT。 / Source and selected-state SDFs, ligand PDBQT. |
 | [04 对接与复筛 / Docking and follow-up](#docking) | AutoDock Vina 用 CPU 多线程，Uni-Dock 用 NVIDIA CUDA。用结构查看器检查位姿和口袋接触。 / AutoDock Vina uses CPU threads and Uni-Dock uses NVIDIA CUDA. Review poses and pocket contacts in a structure viewer. | 对接位姿、日志、候选 ID、搜索盒和种子。 / Poses, logs, candidate IDs, box, and seeds. |
-| [05 恢复与质检 / Pose recovery and QC](#pose-handoff) | Meeko 从 PDBQT 映射恢复 SDF，Uni-Dock 也可直接输出 SDF。RDKit 对照原分子，Open Babel 转 MOL2 并辅助检查重原子几何。 / Meeko uses PDBQT mappings to recover SDF. Uni-Dock also supports native SDF output. RDKit compares the graph with the source and Open Babel converts to MOL2 and assists with geometry checks. | 入选位姿的 SDF、MOL2、原子映射及绝对坐标核对。 / Selected pose SDF, MOL2, atom mapping, and absolute coordinate check. |
+| [05 恢复与质检 / Pose recovery and QC](#pose-handoff) | A 用 Meeko 映射导出 SDF。B 用原始 SDF 和经审核的原子映射，由 RDKit 恢复旧 ADT 位姿。两条路线都通过化学与坐标检查，再用 Open Babel 转 MOL2。 / A exports SDF from Meeko mappings. B maps a legacy ADT pose onto the original SDF with RDKit. Both require chemistry and coordinate checks before Open Babel converts to MOL2. | 入选位姿的 SDF、MOL2、原子映射及绝对坐标核对。 / Selected pose SDF, MOL2, atom mapping, and absolute coordinate check. |
 | [06–07 两套力场与组装 / Force fields and assembly](#topology) | 蛋白由 GROMACS `pdb2gmx` 参数化。AMBER 配体采用 AmberTools（`antechamber`、`sqm`、`parmchk2`、`tleap`）与 ACPYPE；CHARMM 配体采用 CGenFF 与 Lemkul Lab 转换器。 / GROMACS `pdb2gmx` parameterizes the protein. The AMBER ligand uses AmberTools and ACPYPE. The CHARMM ligand uses CGenFF and the Lemkul Lab converter. | AMBER99SB-ILDN + GAFF2/AM1-BCC 或 CHARMM36m + CGenFF，坐标和拓扑原子顺序一致。 / Compatible protein and ligand parameters and matching atom order. |
 | [08–10 建系与生产 / Setup and production](#simulation) | GROMACS 完成建盒、加水加盐、EM、NVT、NPT、解除位置限制后试跑、生产和检查点续跑。 / GROMACS handles boxing, solvation, ions, EM, NVT, NPT, unrestrained tests, production, and restarts. | MDP、TPR、CPT、EDR、XTC 与日志。 / MDP, TPR, CPT, EDR, XTC, and logs. |
 | [11–12 分析与出图 / Analysis and figures](#analysis) | GROMACS 处理 PBC 和指标，MDAnalysis 做自定义轨迹分析，gmx_MMPBSA 可做端点能量估算，开源 PyMOL 出结构图，Pandas/Matplotlib 整理统计数据和画曲线。 / GROMACS handles periodic images and standard metrics. MDAnalysis supports custom trajectory analyses, gmx_MMPBSA optional endpoint estimates, open-source PyMOL structure figures, and Pandas/Matplotlib data processing and plots. | XVG、代表结构、PNG，及可选能量结果。 / XVG files, representative structures, PNG figures, and optional energy estimates. |
@@ -215,17 +246,17 @@ flowchart TD
 
 ### 网课错误方法与本教程路线 / Tutorial shortcut and reviewed workflow
 
-先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列保留原始结构和对接位姿，先恢复 SDF 并核对化学结构，再转 MOL2 和参数化。
+先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列以新项目的 Meeko 路线为例，先恢复 SDF 并核对化学与位姿，再转 MOL2 和参数化。已经完成对接的 ADT 项目，见[路线 B 的原始 SDF 模板恢复](#legacy-adt-handoff)。
 
 ```mermaid
 flowchart TD
-    start["同一个小分子配体"]
+    start["同一小分子"]
     wrong["网课误操作"]
     right["本教程路线"]
     w1["`Chem3D
 导出 MOL2`"]
-    r1["`Molscrub · RDKit
-准备并核对 SDF`"]
+    r1["`Molscrub
+RDKit · SDF`"]
     w2["`AutoDockTools
 制备 PDBQT`"]
     r2["`Meeko
@@ -237,12 +268,12 @@ output.pdbqt`"]
     w4["`PyMOL
 直接另存 MOL2`"]
     r4["`Meeko · RDKit
-恢复 SDF 并核对`"]
+恢复并核对 SDF`"]
     w5["`直接参数化
 生成 lig.top`"]
     r5["`Open Babel
-保留位姿转 MOL2`"]
-    w6["化学结构未经核对"]
+原位转 MOL2`"]
+    w6["化学未经核对"]
     r6["`ACPYPE / CGenFF
 生成配体拓扑`"]
     start --> wrong & right
@@ -268,17 +299,17 @@ output.pdbqt`"]
 <details>
 <summary>Workflow comparison in English</summary>
 
-The tutorial route optimizes the ligand in Chem3D, exports MOL2, and prepares PDBQT with AutoDockTools (ADT). Vina then writes `output.pdbqt`. The shortcut is to save the chosen pose directly as MOL2 in PyMOL and use it for `lig.top` or `lig.itp` without checking the chemistry.
+The tutorial route optimizes the ligand in Chem3D, exports MOL2, and prepares PDBQT with AutoDockTools (ADT). Vina then writes `output.pdbqt`. The shortcut is to save the chosen pose directly as MOL2 in PyMOL and use it for `lig.top` or `lig.itp` without checking the chemistry. The right column shows the Meeko route for new runs. A completed ADT job can use [the original SDF template route](#legacy-adt-handoff).
 
 ```mermaid
 flowchart TD
-    start["Same small-molecule ligand"]
+    start["Same ligand"]
     wrong["Tutorial shortcut"]
     right["Reviewed workflow"]
     w1["`Chem3D
 Export MOL2`"]
-    r1["`Molscrub · RDKit
-Prepare and check SDF`"]
+    r1["`Molscrub
+RDKit · SDF`"]
     w2["`AutoDockTools
 Prepare PDBQT`"]
     r2["`Meeko
@@ -290,12 +321,12 @@ Docked poses`"]
     w4["`PyMOL
 Save MOL2 directly`"]
     r4["`Meeko · RDKit
-Recover and check SDF`"]
+Check pose SDF`"]
     w5["`Parameterize directly
 Build lig.top`"]
     r5["`Open Babel
-Convert pose to MOL2`"]
-    w6["Chemistry unchecked"]
+SDF → MOL2`"]
+    w6["Unchecked graph"]
     r6["`ACPYPE / CGenFF
 Build ligand topology`"]
     start --> wrong & right
@@ -708,7 +739,15 @@ Redock shortlisted candidates with the same chemical state, receptor frame, and 
 
 <a name="pose-handoff"></a>
 
-## 05. 恢复姿态与化学结构 / Recover the selected pose and chemistry
+## 05. 对接到 MD 的两条交接路线 / Two routes from docking to MD
+
+两条路线都交付 `lig_pose.sdf`。原始结构提供键级、形式电荷、质子化状态和手性，所选对接位姿提供原位重原子坐标。根据手头的结构文件选择恢复工具，再按需要选择对接设备。  
+Both routes produce `lig_pose.sdf`. The source structure supplies bond orders, formal charge, protonation, and stereochemistry. The selected docked pose supplies the in-place heavy-atom coordinates. Choose the recovery tools from the available files and select the docking device independently.
+
+| 路线 / Route | 何时使用 / When to use it | 如何恢复 / How to recover |
+| --- | --- | --- |
+| **A · Meeko 保留映射 / Meeko-preserved mapping** | 新项目，或结果仍含 Meeko 写入的 SMILES 与索引。 / New jobs, or outputs retaining Meeko's SMILES and atom indices. | Molscrub/RDKit → Meeko PDBQT → 对接 → `mk_export.py` 导出 SDF → RDKit 核对。 / Prepare and check the state, dock mapped PDBQT, export SDF with `mk_export.py`, then verify with RDKit. |
+| **[B · 旧 ADT + SDF 模板 / Legacy ADT with SDF template](#legacy-adt-handoff)** | 已有旧 ADT 位姿，并保存了同一化学状态的原始 SDF。 / A legacy ADT pose and the original SDF for the same chemical state are available. | 选定 PDBQT MODEL → 核对一一映射 → RDKit 回填重原子坐标、补氢及核对 → SDF。 / Select the PDBQT MODEL, verify the atom map, then use RDKit to transfer coordinates, add hydrogens, check the pose and write SDF. |
 
 保留原始 SDF 和所选运行的输出。每套力场、姿态和独立重复各用一个目录。以下示例选 AMBER + CPU 位姿。如选择 CHARMM，把 `ff_family=amber` 改为 `ff_family=charmm`。使用 GPU 位姿时，从步骤 04B 输出目录查找该配体的 PDBQT，把 `pose_file` 改成查到的实际路径。  
 Keep the source SDF and the selected run's output. Use separate directories for each force field, pose, and replicate. This example selects AMBER and the CPU pose. Set `ff_family=charmm` for CHARMM. To use a GPU pose, find its PDBQT in step 04B's output directory and set `pose_file` to that path.
@@ -724,15 +763,23 @@ test -s "$pose_file" &&
   cp input/protein.pdb "$run_dir/protein.pdb" &&
   cp ligands/state001.sdf "$run_dir/state_original.sdf" &&
   cp "$pose_file" "$run_dir/selected_run.pdbqt" &&
-  cd "$run_dir"
+cd "$run_dir"
+```
 
+### A. 新项目走 Meeko 映射 / New jobs with Meeko mappings
+
+对接前归档原始 SDF 及 Meeko 制备的配体 PDBQT。对接后检查输出的 `REMARK SMILES`、`REMARK SMILES IDX`，并核对 `REMARK H PARENT` 记录（如有）。  
+Archive the original SDF and Meeko-prepared ligand PDBQT before docking. Check the output for `REMARK SMILES`, `REMARK SMILES IDX`, and `REMARK H PARENT` where present. [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
+
+```bash
 awk '/^REMARK SMILES / && $3 != "IDX" {print; found=1; exit}
      END {if (!found) exit 1}' selected_run.pdbqt
 grep -m 1 '^REMARK SMILES IDX ' selected_run.pdbqt
+grep -m 1 '^REMARK H PARENT ' selected_run.pdbqt || true
 ```
 
-Meeko 映射检查通过后再导出。若输出缺少映射，保留原始结果并回到制备和对接阶段核查引擎输出。若使用官方 Vina 重新生成候选姿态，记录为新的 CPU 位姿，再按其自身证据选入 MD。  
-Export after the Meeko mapping checks pass. If the output lacks mapping metadata, retain it and revisit preparation and docking to inspect the engine output. If you regenerate a candidate with upstream Vina, record it as a new CPU pose and assess it on its own evidence before MD.
+映射检查通过后导出。对接输出没有这些记录时，旧 ADT 结果按路线 B 处理。若需要重新对接，为新位姿单独记录引擎、参数和筛选依据。  
+Export after the mapping checks pass. Use route B for legacy ADT results with no Meeko metadata. When redocking, record the engine, settings, and selection evidence for the new poses separately.
 
 ```bash
 mk_export.py selected_run.pdbqt -s docked_poses.sdf
@@ -740,8 +787,8 @@ grep -E '^MODEL|^REMARK VINA RESULT' selected_run.pdbqt
 obabel docked_poses.sdf -ocan
 ```
 
-**GPU 备选交接：直接输出 SDF / GPU alternative: direct SDF output.** 如果某个 Uni-Dock PDBQT 文件缺少 Meeko 化学映射，可用 Uni-Dock Tools 从原 SDF 准备 GPU 输入，然后以同一个受体和盒重新对接，取得有化学图的 SDF。将它记为一个新的 GPU 对接任务。在步骤 05 的重复目录中开始，下面第一条命令会返回项目根目录。保留上面的 `run_dir` 变量。  
-If a Uni-Dock PDBQT output lacks Meeko metadata, use Uni-Dock Tools to prepare GPU input from the original SDF and redock against the same receptor and box to produce SDF poses with a molecular graph. Record this as a new GPU docking job. Start from the step 05 replicate directory. The first command returns to the project root. Keep the `run_dir` variable set above. [Uni-Dock Tools instructions](https://github.com/dptech-corp/Uni-Dock/blob/main/unidock_tools/README.md)
+**Uni-Dock 备选交接 / Optional native SDF from Uni-Dock.** 如果某个 Uni-Dock PDBQT 文件缺少 Meeko 化学映射，可用 Uni-Dock Tools 从原 SDF 准备 GPU 输入，然后以同一个受体和盒重新对接，取得有化学图的 SDF。这是补充路径，取得的是一次新对接的位姿。在步骤 05 的重复目录中开始，下面第一条命令会返回项目根目录。保留上面的 `run_dir` 变量。  
+If a Uni-Dock PDBQT output lacks Meeko metadata, use Uni-Dock Tools to prepare GPU input from the original SDF and redock against the same receptor and box to produce SDF poses with a molecular graph. This optional fallback produces poses from a new docking job. Start from the step 05 replicate directory. The first command returns to the project root. Keep the `run_dir` variable set above. [Uni-Dock Tools instructions](https://github.com/dptech-corp/Uni-Dock/blob/main/unidock_tools/README.md)
 
 ```bash
 cd ../..
@@ -780,6 +827,94 @@ obabel state_original.sdf -ocan
 obabel lig_pose.sdf -ocan
 ```
 
+<a name="legacy-adt-handoff"></a>
+
+### B. 旧 ADT 结果用原始 SDF 模板恢复 / Recover a legacy ADT pose with the original SDF
+
+把同一化学状态的原始 SDF 保存为 `state_original.sdf`，把旧 Vina 输出保存为 `selected_run.pdbqt`，放在本步骤的独立目录。利用原始 ADT 输入、原子名和制备记录核对一一映射，逐项确认重原子元素、连接和序号。仅凭元素相同或行顺序相同无法确认对应关系。模板、映射或手性无法确认时，回到 A 重新准备并对接。  
+Save the original SDF for the same chemical state as `state_original.sdf` and the legacy Vina output as `selected_run.pdbqt` in this run directory. Use the original ADT input, atom names, and preparation records to verify one-to-one mapping, checking heavy-atom elements, connectivity, and identifiers. Element identity or file order alone cannot establish correspondence. If the template, mapping, or stereochemistry is uncertain, prepare and dock again with route A.
+
+下面以 MODEL 1 为例，按实际选择更改。输出各列是 PDBQT serial、三维坐标（Å）和 AutoDock 类型。如果输入是 AutoDock4 `.dlg`，先在对应工具中提取所选位姿。如果单一位姿没有 MODEL 标记，先确认文件只含所选位姿，再单独提取。  
+This example uses MODEL 1. Change it to the verified model. The columns are PDBQT serial, coordinates (Å), and AutoDock atom type. For an AutoDock4 `.dlg`, extract the selected pose first. If a single pose has no MODEL record, confirm its contents and extract that structure explicitly.
+
+```bash
+grep -E '^MODEL|^REMARK VINA RESULT' selected_run.pdbqt
+model=1
+awk -v model="$model" '
+  $1 == "MODEL" { selected = ($2 == model); next }
+  $1 == "ENDMDL" { selected = 0; next }
+  selected && /^(ATOM  |HETATM)/ && $NF !~ /^(H|HD|HS)$/ {
+    printf "%d\t%.3f\t%.3f\t%.3f\t%s\n",
+      substr($0, 7, 5), substr($0, 31, 8), substr($0, 39, 8), substr($0, 47, 8), $NF
+  }
+' selected_run.pdbqt > pose_heavy.tsv
+test -s pose_heavy.tsv && cat pose_heavy.tsv
+```
+
+将经核对的映射保存为 `atom_map.tsv`，每行两列，无表头。第一列是 RDKit 读入原始 SDF 并去普通氢后的重原子编号，**从 1 起**。第二列是该原子在所选 PDBQT MODEL 的 serial。用下列命令查看模板编号和元素。  
+Save the verified mapping as `atom_map.tsv` with two columns and no header. Column 1 is the **one-based** heavy-atom index after RDKit removes ordinary hydrogens from the source SDF. Column 2 is the atom serial in the selected PDBQT MODEL. Use these commands to inspect the template indices and elements.
+
+```bash
+conda activate docktools
+python - <<'RDKIT'
+from rdkit import Chem
+
+template, = Chem.SDMolSupplier("state_original.sdf", removeHs=True)
+for atom in template.GetAtoms():
+    print(atom.GetIdx() + 1, atom.GetSymbol())
+RDKIT
+```
+
+映射审核后运行。本例适用于常规有机小分子。RDKit 从模板复制化学图，回填对接重原子坐标后补氢。从三维构象重新感知的立体化学要与模板一致。遇到断言报错时暂停并复核。  
+Run after verifying the mapping. This example covers ordinary organic ligands. RDKit copies the molecular graph, transfers the docked heavy-atom coordinates, and adds hydrogens. Stereochemistry assigned from the recovered geometry must match the template. Stop and investigate a failed assertion. [RDKit stereochemistry API](https://www.rdkit.org/docs/source/rdkit.Chem.rdmolops.html#rdkit.Chem.rdmolops.AssignStereochemistryFrom3D)
+
+```bash
+python - <<'RDKIT'
+from math import dist
+from pathlib import Path
+from rdkit import Chem
+
+template, = Chem.SDMolSupplier("state_original.sdf", removeHs=True)
+assert template is not None and all(a.GetAtomicNum() > 1 for a in template.GetAtoms())
+mapped_rows = [line.split() for line in Path("atom_map.tsv").read_text().splitlines() if line.strip()]
+pose_rows = [line.split() for line in Path("pose_heavy.tsv").read_text().splitlines() if line.strip()]
+mapping = {int(idx) - 1: int(serial) for idx, serial in mapped_rows}
+coords = {int(serial): (float(x), float(y), float(z)) for serial, x, y, z, _ in pose_rows}
+assert len(mapped_rows) == len(mapping) == template.GetNumAtoms()
+assert len(pose_rows) == len(coords) == len(mapping)
+assert set(mapping) == set(range(template.GetNumAtoms()))
+assert len(set(mapping.values())) == len(mapping) and set(mapping.values()) == set(coords)
+
+pose = Chem.Mol(template)
+conf = pose.GetConformer()
+assert conf.Is3D()
+for idx, serial in mapping.items():
+    conf.SetAtomPosition(idx, coords[serial])
+
+pose = Chem.AddHs(pose, addCoords=True)
+perceived = Chem.Mol(pose)
+Chem.AssignStereochemistryFrom3D(perceived, replaceExistingTags=True)
+assert Chem.MolToSmiles(Chem.RemoveHs(perceived)) == Chem.MolToSmiles(template)
+assert Chem.GetFormalCharge(pose) == Chem.GetFormalCharge(template)
+
+with Chem.SDWriter("lig_pose.sdf") as writer:
+    writer.write(pose)
+saved, = Chem.SDMolSupplier("lig_pose.sdf", removeHs=False)
+saved_conf = saved.GetConformer()
+errors = []
+for idx, serial in mapping.items():
+    p = saved_conf.GetAtomPosition(idx)
+    errors.append(dist((p.x, p.y, p.z), coords[serial]))
+assert max(errors) <= 0.02, max(errors)
+print(f"Maximum mapped heavy-atom position difference: {max(errors):.4f} Å")
+RDKIT
+```
+
+`0.02 Å` 是这里校验文件写出与原位坐标的工程容差。归档原始 SDF、ADT 输入、MODEL 号和映射表，校验通过后再用 `lig_pose.sdf`。  
+`0.02 Å` is the file-transfer tolerance used here. Archive the source SDF, ADT input, model number, and atom map. Use `lig_pose.sdf` after the checks pass.
+
+### 两条路线共同验收 / Final checks for both routes
+
 在已激活的 `docktools` 环境进入 Python，对照原始化学状态和恢复位姿。两条输出分别检查规范异构 SMILES 和净电荷。为比较化学图，RDKit 在内存中移除普通显式氢；用于参数化的原 SDF 文件保持显式氢与原位坐标。结果不同或分子读入失败时，先查明原因。  
 In the active `docktools` environment, open Python and compare the original state against the recovered pose. The two checks compare isomeric canonical SMILES and net charge. RDKit removes ordinary explicit hydrogens in memory for this comparison. Parameterization still uses the SDF with explicit hydrogens and in-place coordinates. Investigate differences or failed reads.
 
@@ -797,8 +932,8 @@ Chem.GetFormalCharge(source) == Chem.GetFormalCharge(pose)
 exit()
 ```
 
-**验收 / Check.** PDBQT 路线用 Meeko 原始映射恢复键级与化学身份。直接 SDF 路线对照原始 SDF 核对分子图。用 SMILES 初筛并复核手性、净电荷和分子图，再逐原子比对重原子坐标。叠加时保留绝对坐标，并保留原始对接几何。缺少映射时从原始 SDF 重新准备 Meeko 输入并对接。  
-Use Meeko's original mapping to recover bond orders and identity on the PDBQT route. For direct SDF output, compare the molecular graph with the input SDF. Screen with canonical SMILES, verify stereochemistry, net charge, and connectivity, and then compare mapped heavy-atom coordinates. Overlay structures in their original absolute coordinates to preserve the docked geometry. If mapping metadata is missing, prepare Meeko input again from the original SDF and rerun docking. [Meeko export in the Vina tutorial](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf)
+**验收 / Check.** 用原始 SDF 与输出核对分子图、键级、手性和整数净电荷。逐原子核对入选 MODEL 与 SDF 的重原子坐标。叠加时保留绝对坐标。原始位姿或化学身份无法确认时，回到路线 A 重新生成候选。通过后进入第 06 节参数化。  
+Compare bond orders, molecular graph, stereochemistry, and integer net charge with the source SDF. Check the mapped heavy atoms against the selected MODEL in their original absolute coordinates. If the pose or chemical identity cannot be verified, regenerate candidates with route A. Proceed to parameterization in step 06 after these checks pass. [Meeko export in the Vina tutorial](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf)
 
 <a name="topology"></a>
 

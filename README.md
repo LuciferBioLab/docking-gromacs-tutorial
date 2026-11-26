@@ -127,6 +127,61 @@ flowchart TD
 | 将 GAFF2 配体直接 include 到 CHARMM36m 蛋白拓扑 / Include a GAFF2 ligand directly in a CHARMM36m topology | 非键合默认项、1–4 规则及参数体系可能冲突。 / Nonbonded defaults, 1–4 rules, and parameter conventions can conflict. | 使用 AMBER + GAFF2 或 CHARMM + CGenFF 的匹配路线。 / Use the matched AMBER + GAFF2 or CHARMM + CGenFF combination. |
 | 遇到 grompp warning 直接抬高 `-maxwarn`，或把最低对接分数当作亲和力 / Raise `-maxwarn` after warnings or interpret the lowest docking score as affinity | 可能放行错序拓扑、未知参数或误读筛选结果。 / This can hide topology and parameter problems or overstate a screening result. | 检查展开拓扑、警告原文和重对接结果，用独立实验评价亲和力。 / Review the expanded topology, warning messages, and redocking, and use independent experiments to assess affinity. |
 
+<a name="chem3d-pymol-topology"></a>
+
+### 具体误操作：Chem3D → AutoDockTools → PyMOL → 配体拓扑
+
+先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。网课中的问题出现在下一步：把选中的对接位姿在 PyMOL 中直接另存为 MOL2，随后把它交给 ACPYPE 或其他参数化工具生成 `lig.top`、`lig.itp`。
+
+```mermaid
+flowchart TD
+    Chem3D("Chem3D → MOL2") --> ADT("ADT → PDBQT")
+    ADT --> Vina("Vina → output.pdbqt")
+    Vina --> Save("PyMOL → MOL2")
+    Save --> Top("生成 lig.top")
+    Save -.-> Missing("化学信息未核对")
+
+    classDef prepared fill:#eef5fc,stroke:#63809f,color:#152e48
+    classDef shortcut fill:#fff2eb,stroke:#a34d37,color:#40251b
+    classDef risk fill:#a23542,stroke:#80242e,color:#ffffff
+    class Chem3D,ADT,Vina prepared
+    class Save,Top shortcut
+    class Missing risk
+```
+
+**风险出在对接到 MD 的交接。** Chem3D 可以用于构象准备，MOL2 也可以作为参数化输入。PDBQT 保存对接坐标、原子类型和部分电荷，缺少用于可靠还原完整键级和形式电荷的信息。非极性氢也常在制备时合并。PyMOL 另存为 MOL2 时，即使重原子位置看起来一致，也需要对照原始配体检查键级、芳香性、质子化状态和净电荷。参数化完成只说明工具处理了该输入，化学状态仍需单独核对。MD 的部分电荷应按所选力场方案生成。
+
+**可靠的交接方法。** 保留与对接输入同一化学状态的原始 SDF 或 MOL2。用 Meeko 制备配体时保留 `REMARK SMILES` 和 `REMARK SMILES IDX`，从所选对接位姿恢复 SDF，再逐原子核对重原子坐标、键级、手性和净电荷。确需 MOL2 时只转换格式，保留已核对的位姿，最后用所选的 AMBER 或 CHARMM 路线参数化。旧版 ADT 的输出若缺少 Meeko 映射，可用原始结构做可靠的原子映射。无法确认映射时，用 Meeko 重新制备并对接。
+
+<details>
+<summary>English version: Chem3D → ADT → PyMOL → ligand topology</summary>
+
+The tutorial route optimizes the ligand in Chem3D, exports MOL2, and prepares PDBQT with AutoDockTools (ADT). Vina then writes `output.pdbqt`. The shortcut is to save the chosen pose directly as MOL2 in PyMOL and use it for `lig.top` or `lig.itp` without checking the chemistry.
+
+```mermaid
+flowchart TD
+    Chem3D("Chem3D → MOL2") --> ADT("ADT → PDBQT")
+    ADT --> Vina("Vina → output.pdbqt")
+    Vina --> Save("PyMOL → MOL2")
+    Save --> Top("Build lig.top")
+    Save -.-> Missing("Skip chemistry QC")
+
+    classDef prepared fill:#eef5fc,stroke:#63809f,color:#152e48
+    classDef shortcut fill:#fff2eb,stroke:#a34d37,color:#40251b
+    classDef risk fill:#a23542,stroke:#80242e,color:#ffffff
+    class Chem3D,ADT,Vina prepared
+    class Save,Top shortcut
+    class Missing risk
+```
+
+Chem3D can prepare conformers, and MOL2 can be valid input for parameterization. PDBQT stores docking coordinates, atom types, and partial charges, with insufficient information to reliably restore all bond orders and formal charges. Nonpolar hydrogens are also commonly merged during preparation. Even when the heavy-atom position looks unchanged, verify bond orders, aromaticity, protonation, and net charge against the original ligand. Generate MD partial charges using the chosen force-field protocol.
+
+Keep the original SDF or MOL2 for the same chemical state. With the Meeko SMILES and atom-mapping remarks, recover the selected pose as SDF and verify heavy-atom coordinates, bond orders, stereochemistry, and net charge. If MOL2 is needed, convert the format while preserving the pose before parameterization. For legacy ADT output, establish an unambiguous mapping to the original ligand. If the mapping cannot be verified, prepare the ligand with Meeko and dock again.
+
+</details>
+
+依据 / References · [Vina: Exporting results to SDF](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#exporting-results-to-sdf) · [Meeko: Exporting docking results](https://meeko.readthedocs.io/en/develop/export_usage.html) · [PyMOL: Save](https://pymolwiki.org/index.php/Save) · [ACPYPE: Ligand parameterization](https://acpype.readthedocs.io/en/latest/)
+
 例如，一个来自 Meeko 对接任务的 PDBQT 应先恢复为 SDF，再取经核对的记录转 MOL2。以下在步骤 05 的目录运行，`1` 是核对过的记录号示例。  
 For example, restore SDF chemistry before converting a selected Meeko docking record to MOL2. Run this in the step 05 directory. Replace record `1` with the verified record number.
 

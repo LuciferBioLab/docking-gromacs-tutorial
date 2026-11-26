@@ -1,7 +1,11 @@
-# CPU/GPU 批量分子对接与 GROMACS 分子动力学
-**CPU/GPU Batch Molecular Docking and GROMACS Molecular Dynamics**
+# 蛋白质–小分子对接与 GROMACS 分子动力学
+**A Reproducible Academic Workflow for Protein–Ligand Docking and GROMACS MD**
 
-**中文 / English** · Linux 服务器 / Linux server · Windows + WSL2
+**中文 / English** · CPU / NVIDIA CUDA · Linux · Windows + WSL2
+
+本仓库为学术研究和科研教学提供一套标准化、可复现的操作流程，覆盖结构来源记录、批量对接、位姿和拓扑验收、分子动力学、轨迹分析及论文出图。各阶段说明需要保留的文件和检查依据，便于团队复核方法和复现结果。  
+
+This repository provides a standardized, reproducible workflow for academic research and training. It covers structure provenance, batch docking, pose and topology validation, molecular dynamics, trajectory analysis, and publication figures. Each stage identifies what to archive and check so other researchers can review and reproduce the work.
 
 从受体 PDB 和配体 SDF 开始。用 **Molscrub** 准备配体的质子化状态、互变异构体和 3D 构象，用 **RDKit** 审核化学结构，用 **Meeko** 制备对接输入。使用 **AutoDock Vina（CPU）** 或 **Uni-Dock（NVIDIA CUDA）** 批量对接。
 
@@ -11,7 +15,8 @@ Start with a receptor PDB and ligand SDF. Use **Molscrub** for protonation state
 
 Two routes transfer poses to MD. **For new jobs, retain Meeko mappings, export SDF, and check it with RDKit. For an existing ADT result, use the original SDF for the same chemical state and map the docked coordinates onto it with RDKit.** After checking chemistry and coordinates, use **Open Babel** to convert the verified SDF to MOL2. Generate the protein topology with **GROMACS pdb2gmx** and use **AmberTools / ACPYPE** for GAFF2 + AM1-BCC in the AMBER workflow or **CGenFF** in the CHARMM workflow. Use **GROMACS** for system setup, equilibration, and production, then analyze trajectories and make figures with open-source **PyMOL**.
 
-[完整流程图 / Full workflow](#overview) · [两条 MD 交接路线 / Two pose handoffs](#pose-handoff) · [用到的工具 / Tools used](#toolchain) · [网课与本教程对比 / Workflow comparison](#chem3d-pymol-topology) · [方法依据 / Evidence](#method-evidence)
+[完整流程图 / Full workflow](#overview) · [两条 MD 交接路线 / Two pose handoffs](#pose-handoff) · [网课方法对照 / Workflow comparison](#chem3d-pymol-topology)  
+[论文出图 / Publication figures](#publication-figures) · [工具、官网与源码 / Tools and sources](#sources) · [方法依据 / Evidence](#method-evidence) · [免责声明 / Disclaimer](#disclaimer) · [致谢 / Acknowledgments](#acknowledgments)
 
 适用体系为水溶液中的常规可溶蛋白与**一个非共价结合、有明确化学结构的有机小分子**。膜环境、结合所需的金属或辅因子、非标准残基和共价配体需要针对体系另行建模。对接分数用于筛选候选，轨迹用于分析所选模型在给定条件下的行为。实验结合亲和力与药效需要独立证据。
 
@@ -177,7 +182,7 @@ Matplotlib`"]
 | [05 恢复与质检 / Pose recovery and QC](#pose-handoff) | A 用 Meeko 映射导出 SDF。B 用原始 SDF 和经审核的原子映射，由 RDKit 恢复旧 ADT 位姿。两条路线都通过化学与坐标检查，再用 Open Babel 转 MOL2。 / A exports SDF from Meeko mappings. B maps a legacy ADT pose onto the original SDF with RDKit. Both require chemistry and coordinate checks before Open Babel converts to MOL2. | 入选位姿的 SDF、MOL2、原子映射及绝对坐标核对。 / Selected pose SDF, MOL2, atom mapping, and absolute coordinate check. |
 | [06–07 两套力场与组装 / Force fields and assembly](#topology) | 蛋白由 GROMACS `pdb2gmx` 参数化。AMBER 配体采用 AmberTools（`antechamber`、`sqm`、`parmchk2`、`tleap`）与 ACPYPE；CHARMM 配体采用 CGenFF 与 Lemkul Lab 转换器。 / GROMACS `pdb2gmx` parameterizes the protein. The AMBER ligand uses AmberTools and ACPYPE. The CHARMM ligand uses CGenFF and the Lemkul Lab converter. | AMBER99SB-ILDN + GAFF2/AM1-BCC 或 CHARMM36m + CGenFF，坐标和拓扑原子顺序一致。 / Compatible protein and ligand parameters and matching atom order. |
 | [08–10 建系与生产 / Setup and production](#simulation) | GROMACS 完成建盒、加水加盐、EM、NVT、NPT、解除位置限制后试跑、生产和检查点续跑。 / GROMACS handles boxing, solvation, ions, EM, NVT, NPT, unrestrained tests, production, and restarts. | MDP、TPR、CPT、EDR、XTC 与日志。 / MDP, TPR, CPT, EDR, XTC, and logs. |
-| [11–12 分析与出图 / Analysis and figures](#analysis) | GROMACS 处理 PBC 和指标，MDAnalysis 做自定义轨迹分析，gmx_MMPBSA 可做端点能量估算，开源 PyMOL 出结构图，Pandas/Matplotlib 整理统计数据和画曲线。 / GROMACS handles periodic images and standard metrics. MDAnalysis supports custom trajectory analyses, gmx_MMPBSA optional endpoint estimates, open-source PyMOL structure figures, and Pandas/Matplotlib data processing and plots. | XVG、代表结构、PNG，及可选能量结果。 / XVG files, representative structures, PNG figures, and optional energy estimates. |
+| [11–12 分析与出图 / Analysis and figures](#analysis) | GROMACS / MDAnalysis 处理轨迹，gmx_MMPBSA 可做端点能量估算。开源 PyMOL 出结构图，pandas / Matplotlib / seaborn 出曲线与统计图，Inkscape 或可选的 GIMP / Photoshop 组图。 / GROMACS and MDAnalysis analyze trajectories. gmx_MMPBSA can estimate endpoint energies. Open-source PyMOL renders structures, pandas / Matplotlib / seaborn prepare plots, and Inkscape or optional GIMP / Photoshop assembles panels. | XVG、CSV、代表结构、结构图 PNG、矢量曲线图和可编辑图版。 / XVG, CSV, representative structures, structure PNGs, vector plots, and editable figures. |
 
 ## 网课常见误操作 / Common tutorial mistakes
 
@@ -1548,15 +1553,22 @@ Use the contacts, displacement, or pose grouping from the chosen time window to 
 gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o representative.pdb -dump 50000
 ```
 
+<a name="publication-figures"></a>
+
+### 论文出图与组图 / Publication figures and panel assembly
+
+| 阶段 / Stage | 工具与操作 / Tool and task | 归档 / Archive |
+| --- | --- | --- |
+| 结构图 / Structural panels | 优先用开源 PyMOL 展示蛋白、配体、口袋和代表构象。 / Prefer open-source PyMOL for protein, ligand, pocket, and representative structures. | 输入 PDB、轨迹帧或对接 MODEL、PyMOL 命令与会话、原始 PNG。 / Input PDB, frame or docking MODEL, PyMOL commands and session, original PNG. |
+| 定量图 / Quantitative panels | GROMACS 或 MDAnalysis 计算指标，pandas 整理数据，Matplotlib / seaborn 作图。 / Calculate metrics with GROMACS or MDAnalysis, organize data with pandas, and plot with Matplotlib or seaborn. | 原始 XVG、绘图 CSV、绘图命令、PDF/SVG。 / Raw XVG, plotting CSV, commands, and PDF/SVG. |
+| 组图与排版 / Panel assembly | 优先用 Inkscape 组矢量图；位图可选 GIMP 或 Adobe Photoshop，统一字体、面板编号和对齐。 / Prefer Inkscape for vector layout. GIMP or Adobe Photoshop can assemble raster panels and align type and panel labels. | 原始面板、可编辑图版以及符合投稿要求的导出文件。 / Original panels, editable figure, and journal export. |
+
 <a name="pymol-image-export"></a>
 
-### 使用开源 PyMOL 导出无水印图片 / Export figures with open-source PyMOL
+#### A. 开源 PyMOL 结构图与口袋图 / Structures and pockets in open-source PyMOL
 
-查看对接位姿或制作结构图时，可使用 Schrödinger 维护的开源 PyMOL。标准开源构建用 `png` 导出时默认不会在图片上加软件水印。材料与方法中可记录实际版本号、安装来源和出图命令。  
-Use the open-source PyMOL build maintained by Schrödinger to inspect poses or prepare structure figures. Its standard `png` export adds no software watermark by default. Record the installed version, package source, and export command in the methods. [Schrödinger 开源仓库 / Open-source repository](https://github.com/schrodinger/pymol-open-source) · [Oxford Protein Informatics Group](https://www.blopig.com/blog/2023/10/tips-tricks-with-pymol/)
-
-从 conda-forge 安装并启动开源构建。  
-Install and launch the open-source build from conda-forge. [Package page](https://anaconda.org/conda-forge/pymol-open-source)
+优先安装 Schrödinger 维护的开源构建 `pymol-open-source`。该构建用标准 `png` 命令导出时默认无软件水印。记录实际版本和安装来源，并按 PyMOL 的官方建议引用。  
+Use the Schrödinger-maintained `pymol-open-source` build. Its standard `png` export adds no software watermark by default. Record the version and installation source, and follow PyMOL's citation guidance. [开源仓库 / Source](https://github.com/schrodinger/pymol-open-source) · [conda-forge](https://anaconda.org/conda-forge/pymol-open-source) · [无水印说明 / Oxford Protein Informatics Group](https://www.blopig.com/blog/2023/10/tips-tricks-with-pymol/) · [官方引用 / Citation](https://pymol.org/support.html)
 
 ```bash
 conda create -n pymol-oss --override-channels -c conda-forge pymol-open-source
@@ -1564,50 +1576,109 @@ conda activate pymol-oss
 pymol
 ```
 
-以下命令在 PyMOL 命令行执行，以本节导出的复合物 PDB 为例生成白底 PNG。  
-Run these commands at the PyMOL prompt to render the exported complex PDB as a white-background PNG. [PyMOL `png` command](https://pymolwiki.org/index.php/Png)
+在 PyMOL 命令行读取上一步已选的 `representative.pdb`。画对接结果时，换成与所选 MODEL 对应、已核对绝对坐标的复合物结构。将 `LIG` 换成 PDB 中实际的配体残基名。先用 `count_atoms` 确认选中了目标配体。  
+At the PyMOL prompt, load the selected `representative.pdb`. For a docking panel, use the complex for the selected MODEL after checking its coordinates. Replace `LIG` with the actual ligand residue name in the PDB. Verify the selection with `count_atoms`. [PyMOL selection syntax](https://pymolwiki.org/index.php/Selection_Algebra)
 
 ```text
-load complex_movie.pdb, complex
-bg_color white
-set ray_opaque_background, on
-png complex.png, width=2400, height=1800, dpi=300, ray=1
+load representative.pdb, complex
+select ligand, complex and resn LIG
+count_atoms ligand
+select pocket, byres ((complex and polymer.protein) within 4.0 of ligand)
 ```
 
-引用格式 / Suggested citation · The PyMOL Molecular Graphics System, Version X.Y, Schrödinger, LLC. 将 X.Y 替换成实际安装版本。 / Replace X.Y with your installed version. [PyMOL citation guidance](https://pymol.org/support.html)
+以下示例分别导出全局图和口袋近景。图注注明结构来源、对接 MODEL 或轨迹时间、链/残基编号、选帧依据，以及图中口袋残基的距离标准。这里 4.0 Å 用于显示附近残基。定量接触以所报告的轨迹选择、阈值及统计方法计算。打印尺寸和输出分辨率按拟投期刊核对。  
+Export an overview and a close-up. Record the structure source, docking MODEL or trajectory time, chain and residue IDs, frame selection rule, and the cutoff used to display nearby residues. Here 4.0 Å defines the displayed pocket. Calculate quantitative contacts using the reported trajectory selection, cutoff, and method. Check the intended print dimensions and resolution against the journal instructions. [PyMOL PNG export](https://pymolwiki.org/index.php/Png)
 
-### 可选：用 MDAnalysis 检查轨迹，用 Pandas / Matplotlib 绘图 / Optional trajectory checks and plots
+```text
+hide everything, complex
+show cartoon, complex and polymer.protein
+color marine, complex and polymer.protein
+show sticks, ligand and not hydro
+color orange, ligand
+bg_color white
+set ray_opaque_background, on
+zoom complex, 2
+png complex_overview.png, width=2400, height=1800, dpi=300, ray=1
 
-MDAnalysis 可读取与原子顺序匹配的结构和轨迹，进一步做自定义原子选择和分析。下面检查步骤 11 导出的 `Complex` 文件，并用 Pandas 和 Matplotlib 绘制已经算好的配体 RMSD。代码在 MD 重复目录内执行。  
-MDAnalysis reads matching structure and trajectory files for custom selections and analyses. The example checks the exported `Complex` files from step 11 and plots the calculated ligand RMSD with Pandas and Matplotlib. Run it from the MD replicate directory. [MDAnalysis Universe guide](https://userguide.mdanalysis.org/stable/universe.html) · [Pandas read_csv](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) · [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html)
+show sticks, pocket and not hydro
+zoom ligand, 6
+png pocket_closeup.png, width=2400, height=1800, dpi=300, ray=1
+save pocket_view.pse
+```
+
+引用格式 / Suggested citation · The PyMOL Molecular Graphics System, Version X.Y, Schrödinger, LLC. 将 X.Y 换成实际安装版本。 / Replace X.Y with the installed version. [PyMOL citation guidance](https://pymol.org/support.html)
+
+#### B. Python 轨迹检查与定量绘图 / Trajectory checks and quantitative plots in Python
+
+GROMACS 先生成指标和原始 XVG。MDAnalysis 可核查结构与轨迹文件并做自定义选择。pandas 汇总带重复编号的数据，Matplotlib 和 seaborn 控制颜色、坐标单位和矢量输出。下面以蛋白拟合后的配体重原子 RMSD 为例。  
+Generate the metrics and retain the raw XVG files. MDAnalysis can inspect structure and trajectory files and perform custom selections. Use pandas to organize data with replicate labels and Matplotlib and seaborn to set colors, axis units, and vector exports. The example plots ligand heavy-atom RMSD after protein alignment. [MDAnalysis Universe](https://userguide.mdanalysis.org/stable/universe.html) · [pandas read_csv](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) · [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html) · [seaborn lineplot](https://seaborn.pydata.org/generated/seaborn.lineplot.html)
 
 <details>
 <summary>展开命令 / Show commands</summary>
 
+在 MD 重复目录运行，使用步骤 11 生成的 `rmsd_ligand_columns.txt`。有多个重复时，在 `repeat_files` 中为每份数据添加真实路径；每份 RMSD 需采用同一拟合、单位和时间定义。下面逐条显示重复轨迹。若加汇总曲线或区间，图注明确统计单位、重复数和区间定义。  
+Run from the MD replicate directory using `rmsd_ligand_columns.txt` from step 11. For multiple replicates, add each actual path to `repeat_files`. Keep the alignment, units, and time convention consistent. The example shows individual traces. For a summary line or interval, define the statistical unit, replicate count, and interval in the legend.
+
 ```bash
-conda create -n md-analysis --override-channels -c conda-forge mdanalysis pandas matplotlib
+conda create -n md-analysis --override-channels -c conda-forge \
+  mdanalysis pandas matplotlib 'seaborn>=0.12'
 conda activate md-analysis
-python
 ```
 
-```python
-import MDAnalysis as mda
-import pandas as pd
-from matplotlib import pyplot as plt
+可选的轨迹读取检查使用步骤 11 配套导出的 `Complex` 文件。  
+The optional trajectory check uses the matching `Complex` files exported in step 11.
 
-complex_frames = mda.Universe("complex_movie.pdb", "complex_movie.xtc")
-complex_frames.atoms.n_atoms, len(complex_frames.trajectory)
-rmsd = pd.read_csv(
-    "rmsd_ligand_columns.txt", sep=r"\s+", header=None,
-    names=["Time (ns)", "Ligand RMSD (nm)"],
-)
-rmsd.plot(x="Time (ns)", y="Ligand RMSD (nm)", legend=False)
-plt.tight_layout()
-plt.savefig("rmsd_ligand.png", dpi=300)
-exit()
+```bash
+python - <<'PY'
+import MDAnalysis as mda
+
+u = mda.Universe("complex_movie.pdb", "complex_movie.xtc")
+print("Atoms:", u.atoms.n_atoms, "Frames:", len(u.trajectory))
+PY
+```
+
+用下面的命令保存绘图数据和两种矢量文件。两个坐标轴分别是 ns 和 nm，对应步骤 11 的 RMSD 命令。  
+Save the plotted data and two vector formats. The axes are in ns and nm, as produced by the step 11 RMSD command.
+
+```bash
+python - <<'PY'
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
+repeat_files = {
+    "rep01": "rmsd_ligand_columns.txt",
+}
+curves = []
+for replicate, path in repeat_files.items():
+    trace = pd.read_csv(path, sep=r"\s+", header=None, names=["time_ns", "rmsd_nm"])
+    curves.append(trace.assign(replicate=replicate))
+rmsd = pd.concat(curves, ignore_index=True)
+rmsd.to_csv("rmsd_plot_data.csv", index=False)
+
+sns.set_theme(style="ticks", palette="colorblind")
+fig, ax = plt.subplots(figsize=(4.5, 3), layout="constrained")
+sns.lineplot(data=rmsd, x="time_ns", y="rmsd_nm", hue="replicate",
+             estimator=None, errorbar=None, ax=ax)
+ax.set(xlabel="Time (ns)", ylabel="Ligand heavy-atom RMSD (nm)")
+fig.savefig("rmsd_ligand.pdf")
+fig.savefig("rmsd_ligand.svg")
+plt.close(fig)
+PY
 ```
 
 </details>
+
+<a name="figure-layout"></a>
+
+#### C. 用 Inkscape、GIMP 或 Photoshop 组图 / Panel assembly in Inkscape, GIMP, or Photoshop
+
+1. 从 PyMOL 导入原始结构 PNG，从 Python 导入曲线 SVG/PDF。用 **Inkscape** 组图可保留矢量曲线和文本，建议保存可编辑的 SVG。  
+   Import the original structure PNGs and Python plot SVG/PDF. Use **Inkscape** for vector curves and text, and retain the editable SVG. [Inkscape](https://inkscape.org/) · [Upstream source](https://gitlab.com/inkscape/inkscape)
+2. 做位图组图时，可用开源 **GIMP** 或可选的 **Adobe Photoshop**。Photoshop 中可用 **File → Place Embedded** 把源面板置入为智能对象，将编号和注释放在独立图层，保存 PSD。GIMP 可保留可编辑的 XCF。  
+   For raster layouts, use open-source **GIMP** or optional **Adobe Photoshop**. In Photoshop, use **File → Place Embedded** to place source panels as Smart Objects, keep panel labels on separate layers, and save the PSD. In GIMP, retain the editable XCF. [GIMP](https://www.gimp.org/) · [Adobe Photoshop](https://www.adobe.com/products/photoshop.html) · [Adobe Smart Objects](https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-embedded-smart-objects.html)
+3. 按期刊要求统一字体、面板编号、图例和输出尺寸。保持图版与数据、结构和坐标轴一致，保留原图及裁切记录。需要修改数据曲线、绘图单位或结构呈现时，在 GROMACS、Python 或 PyMOL 中更新源面板，再重新组图。  
+   Match the journal's requirements for type, panel labels, legends, and export dimensions. Preserve the underlying data, structures, axis scales, originals, and cropping records. Update plots, units, or structural views in the source tool, then rebuild the figure. [Nature figure integrity](https://research-figure-guide.nature.com/figures/image-integrity/) · [PLOS figure guidelines](https://journals.plos.org/plosone/s/figures)
 
 <a name="endpoint-energy"></a>
 
@@ -1729,6 +1800,11 @@ conda list -n cgenff-tools --explicit > qc/cgenff-tools-explicit.txt
 conda run -n docktools python -m pip freeze > qc/docktools-pip.txt
 ```
 
+### 方法与图件复现记录 / Methods and figure provenance
+
+每个最终图版记录面板编号、体系、重复编号、源文件、画图工具版本与参数、裁切或图层信息。对结构图记录模型号或实际帧时间，对定量图记录索引组、参考结构、对齐方式、分析时间窗和汇总方式。归档`XVG/CSV`、`PDB`、原始面板以及`SVG/PSD/XCF`等可编辑源文件，按期刊与数据来源要求提供材料。  
+For each final panel, record its system, replicate, source files, plotting tool version and settings, and cropping or layer edits. Include the MODEL or frame time for structures, and selections, reference, alignment, analysis window, and summary method for quantitative plots. Retain XVG/CSV, PDB, original renderings, and editable SVG, PSD, or XCF files. Share materials according to the journal's and data providers' requirements. [MD reproducibility checklist](https://doi.org/10.1038/s42003-023-04653-0) · [Nature figure integrity](https://research-figure-guide.nature.com/figures/image-integrity/)
+
 <a name="sources"></a>
 
 <a name="method-evidence"></a>
@@ -1743,23 +1819,35 @@ conda run -n docktools python -m pip freeze > qc/docktools-pip.txt
 | CHARMM36m + CGenFF | CHARMM36m 与 CGenFF 分别覆盖蛋白与有机小分子。力场移植、stream 版本和罚分处理以官方文档为准。 / CHARMM36m and CGenFF cover the protein and organic ligand, respectively. Use upstream docs to select the matching port and stream version and assess penalties. [CHARMM36m](https://doi.org/10.1038/nmeth.4067) · [CGenFF](https://doi.org/10.1002/jcc.21367) · [MacKerell force-field releases](https://mackerell.umaryland.edu/charmm_ff.shtml) · [CGenFF usage](https://docs.silcsbio.com/2026/cgenff/usage.html) |
 | 动力学验收与可选能量估算 / MD checks and optional endpoint energies | GROMACS 手册支持命令和续跑设置。复现性核对表支持记录采样与独立重复。gmx_MMPBSA 论文说明端点计算方法。 / The GROMACS manual documents setup and restart commands. The reproducibility checklist guides sampling and replicate reporting. The gmx_MMPBSA paper describes the endpoint calculation. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [Managing simulations](https://manual.gromacs.org/2026.3/user-guide/managing-simulations.html) · [MD reproducibility checklist](https://doi.org/10.1038/s42003-023-04653-0) · [gmx_MMPBSA paper](https://doi.org/10.1021/acs.jctc.1c00645) |
 
-## 13. 官网、手册与上游 GitHub / Official documentation and upstream GitHub
+## 13. 工具清单、官网与上游源码 / Tools, official sites, and upstream repositories
 
-| 用途 / Role | 官网、手册或平台 / Website, manual, or service | 上游 GitHub / Upstream GitHub |
+按实际使用的版本和模块引用软件及方法。下表列出官网、文档和上游源码，分别标注辅助工具、数据源及授权软件的角色。  
+Cite the versions and modules you used. The directory links official sites, manuals, and upstream source where available, and identifies the roles of optional tools, data sources, and licensed software.
+
+| 工具与用途 / Tool and role | 官网、手册或平台 / Official site or documentation | 上游 GitHub 或主源码仓库 / Upstream source |
 | --- | --- | --- |
+| RCSB PDB、PubChem · 原始结构与配体数据 / Source structures and ligand data | [RCSB PDB](https://www.rcsb.org/) · [PubChem](https://pubchem.ncbi.nlm.nih.gov/) | 数据库入口 / Data services |
+| Miniforge / conda-forge · 依赖与环境 / Environments and dependencies | [conda-forge](https://conda-forge.org/) | [conda-forge/miniforge](https://github.com/conda-forge/miniforge) |
+| NVIDIA CUDA · GPU 计算后端 / GPU backend | [NVIDIA CUDA documentation](https://docs.nvidia.com/cuda/) · [CUDA on WSL](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) | NVIDIA 工具包 / NVIDIA Toolkit |
+| 微软 WSL · Windows 上的 Linux 环境 / Linux environment on Windows | [Microsoft WSL](https://learn.microsoft.com/windows/wsl/) | [microsoft/WSL](https://github.com/microsoft/WSL) |
 | CPU 分子对接 / CPU docking | [Scripps AutoDock Suite](https://ccsb.scripps.edu/autodocksuite/) · [Vina manual](https://autodock-vina.readthedocs.io/en/latest/) · [Batch tutorial](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html) | [forlilab/AutoDock-Vina](https://github.com/forlilab/AutoDock-Vina) |
 | NVIDIA CUDA 批量对接 / NVIDIA CUDA batch docking | [Uni-Dock usage](https://github.com/dptech-corp/Uni-Dock/tree/main/unidock) · [conda-forge builds](https://anaconda.org/conda-forge/unidock/files) · [NVIDIA CUDA on WSL](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) | [dptech-corp/Uni-Dock](https://github.com/dptech-corp/Uni-Dock) |
 | 其他 GPU 对接 / Other GPU docking | [Vina-GPU 2.1 instructions](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1#readme) · [Scripps docking resources](https://rscd3.scripps.edu/) | [DeltaGroupNJUPT/Vina-GPU-2.1](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1) · [forlilab/AutoDock-GPU](https://github.com/forlilab/AutoDock-GPU) |
-| PDBQT 制备、SDF 导出 / PDBQT preparation and SDF export | [Meeko documentation](https://meeko.readthedocs.io/) | [forlilab/Meeko](https://github.com/forlilab/Meeko) |
+| Meeko · PDBQT 制备、SDF 恢复 / PDBQT preparation and SDF recovery | [Meeko documentation](https://meeko.readthedocs.io/) · [Exporting docking results](https://meeko.readthedocs.io/en/develop/export_usage.html) | [forlilab/Meeko](https://github.com/forlilab/Meeko) |
+| AutoDockTools / AutoGrid · 旧版受体制备和网格参考 / Legacy receptor and grid reference | [Scripps AutoDock Suite](https://ccsb.scripps.edu/autodocksuite/) · [MGLTools](https://sannerlab.github.io/software/mgltools/) | [ccsb-scripps/AutoGrid](https://github.com/ccsb-scripps/AutoGrid) |
 | 配体状态和构象 / Ligand states and conformers | [Molscrub CLI](https://molscrub.readthedocs.io/en/latest/cli.html) | [forlilab/molscrub](https://github.com/forlilab/molscrub) |
 | 化学结构与映射 / Chemical structures and mapping | [RDKit docs](https://www.rdkit.org/docs/) · [Open Babel docs](https://openbabel.org/docs/) | [rdkit/rdkit](https://github.com/rdkit/rdkit) · [openbabel/openbabel](https://github.com/openbabel/openbabel) |
 | 小分子参数 / Ligand parameters | [AmberTools website](https://ambermd.org/AmberTools.php) · [Amber manuals](https://ambermd.org/Manuals.php) · [ACPYPE documentation](https://acpype.readthedocs.io/en/latest/) | [alanwilter/acpype](https://github.com/alanwilter/acpype) |
 | CHARMM36m 与 CGenFF / CHARMM36m and CGenFF | [MacKerell Lab](https://mackerell.umaryland.edu/charmm_ff.shtml) · [CGenFF service](https://cgenff.silcsbio.com/) · [CGenFF manual](https://docs.silcsbio.com/2026/cgenff/usage.html) | [Lemkul-Lab/cgenff_charmm2gmx](https://github.com/Lemkul-Lab/cgenff_charmm2gmx) · [Lemkul-Lab/toppar_c36_releases](https://github.com/Lemkul-Lab/toppar_c36_releases) |
 | 分子动力学 / Molecular dynamics | [GROMACS official site](https://www.gromacs.org/) · [2026.3 manual](https://manual.gromacs.org/2026.3/) · [Primary source repository on GitLab](https://gitlab.com/gromacs/gromacs) | [gromacs/gromacs, public backup](https://github.com/gromacs/gromacs) |
 | 独立的机构教程 / Independent institutional tutorial | [BioExcel GROMACS Protein–Ligand Complex MD Setup](https://mmb.irbbarcelona.org/biobb/workflows/tutorials/biobb_wf_protein-complex_md_setup) | [bioexcel/biobb_wf_protein-complex_md_setup](https://github.com/bioexcel/biobb_wf_protein-complex_md_setup) |
-| 轨迹和数据分析 / Trajectory and data analysis | [MDAnalysis](https://www.mdanalysis.org/) · [Pandas](https://pandas.pydata.org/) · [Matplotlib](https://matplotlib.org/) | [MDAnalysis/mdanalysis](https://github.com/MDAnalysis/mdanalysis) · [pandas-dev/pandas](https://github.com/pandas-dev/pandas) · [matplotlib/matplotlib](https://github.com/matplotlib/matplotlib) |
-| 可视化 / Visualization | [Open-source PyMOL project](https://github.com/schrodinger/pymol-open-source) | [schrodinger/pymol-open-source](https://github.com/schrodinger/pymol-open-source) |
-| 可选端点能量估算 / Optional endpoint estimates | [gmx_MMPBSA manual](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/) | [Valdes-Tresanco-MS/gmx_MMPBSA](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA) |
+| MDAnalysis · 自定义轨迹分析 / Custom trajectory analysis | [MDAnalysis](https://www.mdanalysis.org/) · [User guide](https://userguide.mdanalysis.org/stable/) | [MDAnalysis/mdanalysis](https://github.com/MDAnalysis/mdanalysis) |
+| gmx_MMPBSA · 可选端点能量估算 / Optional endpoint estimates | [gmx_MMPBSA documentation](https://valdes-tresanco-ms.github.io/gmx_MMPBSA/) | [Valdes-Tresanco-MS/gmx_MMPBSA](https://github.com/Valdes-Tresanco-MS/gmx_MMPBSA) |
+| 开源 PyMOL · 结构渲染 / Molecular rendering | [PyMOL 官网 / Official site](https://pymol.org/) · [引用 / Citation](https://pymol.org/support.html) · [conda-forge](https://anaconda.org/conda-forge/pymol-open-source) | [schrodinger/pymol-open-source](https://github.com/schrodinger/pymol-open-source) |
+| pandas · 数据整理 / Data organization | [pandas docs](https://pandas.pydata.org/docs/) | [pandas-dev/pandas](https://github.com/pandas-dev/pandas) |
+| Matplotlib、seaborn · 曲线和统计图 / Scientific plotting | [Matplotlib](https://matplotlib.org/) · [seaborn](https://seaborn.pydata.org/) | [matplotlib/matplotlib](https://github.com/matplotlib/matplotlib) · [mwaskom/seaborn](https://github.com/mwaskom/seaborn) |
+| Inkscape、GIMP · 开源图版排版 / Open-source panel assembly | [Inkscape](https://inkscape.org/) · [GIMP](https://www.gimp.org/) | [Inkscape on GitLab](https://gitlab.com/inkscape/inkscape) · [GIMP source](https://developer.gimp.org/core/setup/git/) |
+| Adobe Photoshop · 可选位图组图 / Optional raster layout | [Adobe Photoshop](https://www.adobe.com/products/photoshop.html) · [Smart Objects](https://helpx.adobe.com/photoshop/desktop/create-manage-layers/smart-objects/create-embedded-smart-objects.html) | Adobe 授权软件 / Adobe-licensed software |
 
 ## 14. 参考论文 / References
 
@@ -1781,5 +1869,29 @@ conda run -n docktools python -m pip freeze > qc/docktools-pip.txt
 15. Huang J, Rauscher S, Nawrocki G, et al. *CHARMM36m: An improved force field for folded and intrinsically disordered proteins*. Nat Methods. 2017. [DOI](https://doi.org/10.1038/nmeth.4067)
 16. Vanommeslaeghe K, Hatcher E, Acharya C, et al. *CHARMM general force field: A force field for drug-like molecules compatible with the CHARMM all-atom additive biological force fields*. J Comput Chem. 2010. [DOI](https://doi.org/10.1002/jcc.21367)
 
+17. Michaud-Agrawal N, Denning EJ, Woolf TB, Beckstein O. *MDAnalysis: A toolkit for the analysis of molecular dynamics simulations*. J Comput Chem. 2011. [DOI](https://doi.org/10.1002/jcc.21787)
+18. Hunter JD. *Matplotlib: A 2D graphics environment*. Comput Sci Eng. 2007. [DOI](https://doi.org/10.1109/MCSE.2007.55)
+19. Waskom ML. *seaborn: Statistical data visualization*. J Open Source Softw. 2021. [DOI](https://doi.org/10.21105/joss.03021)
+
+<a name="disclaimer"></a>
+
+## 15. 免责声明 / Disclaimer
+
+本仓库是独立的学术研究与教学参考。示例中的参数、阈值、结构选择、图件和命令需根据各自研究问题、样品和运行环境复核。对接分数、轨迹稳定性和端点能量属于模型结果，实验结合亲和力、作用机制与临床结论需要独立证据。第三方软件、力场、数据库和公开实例各自适用其许可、服务条款和引用规范。列出工具用于说明来源与贡献，且不代表其作者或机构对本教程背书。  
+
+This independent repository is a reference for academic research and training. Check the example parameters, cutoffs, structures, figures, and commands against your research question, system, and computing environment. Docking scores, trajectory stability, and endpoint energies are model outputs. Experimental affinity, mechanism, and clinical conclusions require independent evidence. Third-party software, force fields, databases, and examples are governed by their own licenses, service terms, and citation policies. Listing a tool credits its contribution and implies no endorsement by its developers or institution.
+
 **验证范围 / Verification scope.** 命令依据上游手册与公开案例编写。已静态核查命令和文件衔接。CUDA 批量对接及两套力场的正式 MD 仍需在目标环境记录实跑结果。  
 The commands were assembled from upstream documentation and public examples. The commands and file handoffs were checked statically. CUDA batch docking and production MD for both force-field routes still need recorded runs on the target hardware.
+
+<a name="acknowledgments"></a>
+
+## 16. 致谢 / Acknowledgments
+
+感谢 AutoDock Vina、Uni-Dock、Molscrub、Meeko、RDKit、Open Babel、ACPYPE 和 GROMACS 的作者、维护者与贡献者。你们开放的源码、文档与示例让对接、位姿恢复、参数化和动力学流程可以被同行复核和复用。也感谢 AmberTools、CHARMM/CGenFF 与 Lemkul Lab 提供力场、参数化工具及转换资源。  
+
+感谢开源 PyMOL、MDAnalysis、gmx_MMPBSA、pandas、Matplotlib、seaborn、Inkscape 和 GIMP 社区提供分析、绘图与组图工具，感谢 conda-forge 维护安装包，以及 RCSB PDB、PubChem 和 BioExcel 提供公开数据和教学案例。欢迎在发表研究时引用实际使用的软件、数据和方法。  
+
+We thank the authors, maintainers, and contributors of AutoDock Vina, Uni-Dock, Molscrub, Meeko, RDKit, Open Babel, ACPYPE, and GROMACS. Their code, documentation, and examples make the workflow easier to inspect and reproduce. We also thank AmberTools, the CHARMM/CGenFF teams, and the Lemkul Lab for force fields, parameterization tools, and conversion resources.  
+
+We thank the open-source PyMOL, MDAnalysis, gmx_MMPBSA, pandas, Matplotlib, seaborn, Inkscape, and GIMP communities for their analysis and figure tools, conda-forge for packaging, and RCSB PDB, PubChem, and BioExcel for public data and examples. Please cite the software, datasets, and methods used in your research. [工具与上游仓库 / Tools and upstream repositories](#sources)

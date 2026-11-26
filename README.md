@@ -9,7 +9,7 @@ Prepare structures with Meeko, then choose **AutoDock Vina (CPU)** or **Uni-Dock
 
 | 步骤 / Step | 阶段 / Stage |
 | --- | --- |
-| 导读 / Start here | [流程图与网课误操作 / Workflow and common tutorial mistakes](#overview) |
+| 导读 / Start here | [完整流程图 / Full workflow](#overview) · [网课错误流程图 / Tutorial error flowchart](#tutorial-error-flow) |
 | 1–2 | [部署与公开示例 / Setup and public example](#setup) |
 | 3–5 | [结构准备、批量对接、姿态导出 / Structure preparation, batch docking, and pose export](#docking) |
 | 6–7 | [两套力场、参数化与复合物组装 / Force-field choices, parameterization, and assembly](#topology) |
@@ -68,6 +68,32 @@ Choose the docking engine, MD force-field family, and GROMACS compute device ind
 
 下例用常见教学操作复现问题，供跟练时自查。  
 These examples illustrate common operations learners can check while following a tutorial.
+
+<a name="tutorial-error-flow"></a>
+
+### 网课错误流程图 / Tutorial error flowchart
+
+实线串起一条常见的错误操作链，虚线标出各步可能造成的问题。发现问题时，回到对应步骤核对输入，再决定是否继续。  
+Solid arrows trace a sequence of common mistakes. Dotted arrows show what can go wrong at each step. When an issue appears, revisit the step and check its inputs before proceeding.
+
+```mermaid
+flowchart TD
+    A["受体制备：删掉所有非蛋白组分 / Strip all nonprotein components"]
+    B["搜索盒：把网格间隔数当成 Å / Use grid interval counts as Å"]
+    C["对接：跳过重对接，只取最低分姿态 / Skip redocking and take the lowest score"]
+    D["转入 MD：重新生成配体三维坐标 / Regenerate the docked ligand geometry"]
+    E["建系：混用 CHARMM 蛋白和 GAFF2 配体 / Mix a CHARMM protein with a GAFF2 ligand"]
+    F["预处理：用 -maxwarn 跳过警告 / Bypass warnings with -maxwarn"]
+    G["解读：用低分和稳定 RMSD 宣称强结合 / Claim strong binding from the score and RMSD"]
+    A --> B --> C --> D --> E --> F --> G
+    A -.-> R1["丢失口袋参考、金属或辅因子 / Lose pocket references, metals, or cofactors"]
+    B -.-> R2["搜索盒大小偏离预期 / Distort the search volume"]
+    C -.-> R3["位姿与口袋接触未经验证 / Leave poses and pocket contacts unverified"]
+    D -.-> R4["进入模拟的配体偏离原始位姿 / Move the ligand away from its original pose"]
+    E -.-> R5["非键合参数和 1–4 规则可能冲突 / Risk incompatible nonbonded and 1–4 rules"]
+    F -.-> R6["拓扑和参数问题未排查 / Leave topology and parameter issues unresolved"]
+    G -.-> R7["结合亲和力缺少独立证据 / Leave affinity claims unsupported"]
+```
 
 | 常见做法 / Common shortcut | 会发生什么 / Consequence | 正确操作 / Fix |
 | --- | --- | --- |

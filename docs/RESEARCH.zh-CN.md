@@ -67,7 +67,7 @@ plip -f analysis/complex.pdb -o analysis/plip -x
 
 单独建结果目录，用 gmx_MMPBSA 上游 CHARMM 可溶蛋白–小分子例先验证环境兼容性。用匹配 TPR 对全系统 XTC 做周期性边界修复和抽样，核对 receptor（受体）和配体的组编号，使用相应的展开 CHARMM topology（拓扑）。GB 分支按安装版本核对允许的半径及 GB 模型。PB 分支记录离子强度、半径、溶剂与溶质介电常数及抽样间隔。示例 0.15 M 表示体相盐浓度，显式体系的离子总数另计。从实际运行选组和时间窗，再核查转换日志和逐帧输出。<sup>[R8](#research-ref-8)</sup>
 
-对 gmx_MMPBSA 1.7.0，可将以下起始设置保存为 `charmm_pbsa.in`。该半径集用于 CHARMM。转换程序省略 CHARMM CMAP 项，解释定量端点能量前须评估这一限制。
+对 gmx_MMPBSA 1.7.0，可将以下起始设置保存为 `charmm_pbsa.in`。`PBRadii=7` 分配 CHARMM 专用半径，`radiopt=0` 让 PBSA 使用转换后的 topology（拓扑）中保存的半径。转换程序省略 CHARMM CMAP 项，解释定量端点能量前须评估这一限制。<sup>[R8](#research-ref-8)</sup>
 
 ```ini
 &general
@@ -86,7 +86,7 @@ plip -f analysis/complex.pdb -o analysis/plip -x
 gmx_MMPBSA -nogui -i charmm_pbsa.in -cs md.tpr -ct charmm_window.xtc -ci index.ndx -cg "$protein_group" "$ligand_group" -cp md_processed.top -o CHARMM_PBSA.dat -eo CHARMM_PBSA.csv
 ```
 
-运行前按已核对的索引设置两个组编号变量。[端点法教程](ANALYSIS.zh-CN.md#endpoint-energy)给出输入格式和环境方法。先用少量帧试跑，再按实测时间和磁盘占用扩大分析窗。
+运行前按已核对的索引设置两个组编号变量。[端点法教程](ANALYSIS.zh-CN.md#endpoint-energy)给出输入格式和环境方法。四帧设置用于说明软件兼容性核验。上游示例使用 `Protein` 与 `JZ4` 两组、`com.tpr`、`com_traj.xtc` 和带有 `toppar/` 配套文件的 `topol.top`。扩大分析窗前，先核对摘要与逐帧 CSV 对应的组和帧数。这里的设置已对照上游示例。本仓库尚无独立的 CHARMM 端点法实测结果。<sup>[R8](#research-ref-8)</sup>
 
 相对炼金结合自由能适合定义明确、参数化一致并已确定原子映射的同系列配体。绝对结合自由能需要单独的约束和标准态方案。两种方案均需诊断状态重叠与收敛。AI 对接模型可用于补充候选 docking pose（对接位姿），并通过独立重对接和化学、几何核查验证。<sup>[R9](#research-ref-9)</sup>
 

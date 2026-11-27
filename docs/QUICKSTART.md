@@ -106,7 +106,16 @@ conda create -n docking-gromacs-locked --file environment/linux-64.explicit.txt
 
 ## Validation boundary
 
-The full 01–12 CPU smoke passed using four CPU threads. Production was 2 ps. The run produced the prepared topology, readable TPR, CPT, XTC, and a protein-aligned ligand RMSD series. The short run reports **14.36 ns/day** for production, which is an observed smoke rate that includes short-run overhead. Charge assignment and preparation time are additional. CUDA throughput, the full CHARMM workflow, and the same-system AMBER/CHARMM production comparison remain unmeasured. See [verification outputs](../examples/expected/README.md).
+The full 01–12 CPU smoke passed using four CPU threads. Production was 2 ps. The run produced the prepared topology, readable TPR, CPT, XTC, and a protein-aligned ligand RMSD series. The short run reports **14.36 ns/day** for production, which is an observed smoke rate that includes short-run overhead. Charge assignment and preparation time are additional. See [verification outputs](../examples/expected/README.md).
+
+| Workflow | Evidence and status |
+| --- | --- |
+| 1 ns CPU quickstart | Preparation and equilibration completed. The last production log record was 96.6 ps. The run ended before the target and left no production checkpoint. |
+| Uni-Dock and GROMACS CUDA | Setup documented. No CUDA throughput measurements. |
+| CHARMM and the paired AMBER/CHARMM comparison | Parameterization and comparison design documented. Full runs and the paired comparison remain unverified. |
+| CHARMM MM/PBSA | Settings matched to the upstream 1.7.0 example. Independent reproduction pending. [CHARMM endpoint setup](RESEARCH.md#free-energy) |
+
+For the packaged example, stages 09 and 10 check that the final step in the dynamics log matches `init-step + nsteps` from the processed MDP. A normal-looking footer can also appear at an early stop.
 
 Check hashes against the supplied files. Numerical trajectories should be interpreted with the software, inputs and settings recorded. Bitwise equality across CPU/GPU runs is not the scientific acceptance criterion. [Validation and sampling](RESEARCH.md#sampling)
 

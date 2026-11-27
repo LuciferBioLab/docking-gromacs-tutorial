@@ -106,7 +106,16 @@ conda create -n docking-gromacs-locked --file environment/linux-64.explicit.txt
 
 ## 验证范围
 
-完整的 01–12 CPU 短测试已用 4 个线程通过。生产段为 2 ps，生成经准备的 topology（拓扑）、可读的 TPR、CPT、XTC 及按蛋白叠合后的配体 RMSD 序列。生产段日志实测 **14.36 ns/day**，数值含短运行开销，另需计入参数化与制备时间。CUDA 性能、完整 CHARMM 流程和同体系 AMBER/CHARMM 生产段对比仍待实测。见[验证产物](../examples/expected/README.md)。
+完整的 01–12 CPU 短测试已用 4 个线程通过。生产段为 2 ps，生成经准备的 topology（拓扑）、可读的 TPR、CPT、XTC 及按蛋白叠合后的配体 RMSD 序列。生产段日志实测 **14.36 ns/day**，数值含短运行开销，另需计入参数化与制备时间。见[验证产物](../examples/expected/README.md)。
+
+| 流程 | 验证依据与状态 |
+| --- | --- |
+| 1 ns CPU 快跑 | 已完成制备和平衡。生产日志最后记录到 96.6 ps，未达到计划终点，也未留下生产检查点。 |
+| Uni-Dock 与 GROMACS CUDA | 已整理部署说明，尚无 CUDA 吞吐实测。 |
+| CHARMM 与同体系 AMBER/CHARMM 对照 | 已整理参数化和对照设计，完整运行与对照结果尚待验证。 |
+| CHARMM MM/PBSA | 设置已与上游 1.7.0 示例核对，尚未独立复跑。[CHARMM 端点法](RESEARCH.zh-CN.md#free-energy) |
+
+打包示例的第 09 和 10 阶段会把动力学日志末步与处理后 MDP 中的 `init-step + nsteps` 对照。任务提前停止时，日志也可能出现正常的结束文字。
 
 以所附文件的校验和核对完整性；轨迹解读参考软件、输入和设置记录。不同 CPU/GPU 的结果按科学判据核验。[验证与采样](RESEARCH.zh-CN.md#sampling)
 

@@ -207,13 +207,17 @@ Track **validated input, running, and completed production** as separate states.
 gmx mdrun -v -deffnm md "${md_backend[@]}" -cpt 15
 ```
 
-Before restarting an interrupted run, preserve its output files and verify that `md.cpt` matches the production input, log, and trajectory. Record any device or offload changes. Extend `md.tpr` with `gmx convert-tpr -extend` in picoseconds and resume from the matching checkpoint. [GROMACS long simulations](https://manual.gromacs.org/current/user-guide/managing-simulations.html)
+Before restarting an interrupted run, preserve its outputs and verify that `md.cpt` matches the production TPR, log, and trajectory. Record any device or offload changes. A missing checkpoint makes GROMACS start at the first step in the TPR. The file check below keeps the restart command from running if `md.cpt` is absent or empty. If the checkpoint is unavailable, recover the latest matching checkpoint or record a fresh run from a validated starting state in a separate directory. [GROMACS 2026.3 mdrun](https://manual.gromacs.org/2026.3/onlinehelp/gmx-mdrun.html)
 
 **Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. Runtime and output size depend on system size and simulated duration.
 
 ```bash
-ls -lh md.cpt md.tpr md.log md.xtc
-gmx mdrun -v -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
+(
+  set -e
+  test -s md.cpt
+  ls -lh md.cpt md.tpr md.log md.xtc
+  gmx mdrun -v -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
+)
 ```
 
 ### Extend a production run
@@ -223,10 +227,14 @@ After reaching the planned endpoint, run these commands from the same replicate 
 **Environment:** `docking-gromacs`. **Expected files or evidence:** `md.tpr`, `md_extended.tpr`. Runtime and output size depend on system size and simulated duration.
 
 ```bash
-gmx convert-tpr -s md.tpr -extend 10000 -o md_extended.tpr
-gmx mdrun -v -s md_extended.tpr -deffnm md -cpi md.cpt -append  "${md_backend[@]}" -cpt 15
-gmx check -f md.xtc
-tail -25 md.log
+(
+  set -e
+  test -s md.cpt
+  gmx convert-tpr -s md.tpr -extend 10000 -o md_extended.tpr
+  gmx mdrun -v -s md_extended.tpr -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
+  gmx check -f md.xtc
+  tail -25 md.log
+)
 ```
 
 Check the end step and time against the log and trajectory before analysis. For another extension, start from the latest TPR used and retain the input and log for each extension.

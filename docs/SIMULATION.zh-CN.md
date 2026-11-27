@@ -207,13 +207,17 @@ grep -Ei '^[[:space:]]*(dt|nsteps|nstxout-compressed|compressed-x-grps)[[:space:
 gmx mdrun -v -deffnm md "${md_backend[@]}" -cpt 15
 ```
 
-同一生产任务中断后，保留原始输出，确认 `md.cpt` 存在且配套 `md.tpr`、日志和轨迹，再使用检查点续跑。若修改了运行设备或显式 GPU 参数，记录实际续跑配置。需增加模拟时长时，使用 `gmx convert-tpr -extend`（单位 ps）和同一检查点。 [GROMACS long simulations](https://manual.gromacs.org/current/user-guide/managing-simulations.html)
+同一生产任务中断后，保留原始输出，确认 `md.cpt` 与生产段 TPR、日志和轨迹配套。若修改了运行设备或卸载配置，记录实际设置。GROMACS 找不到检查点时会从 TPR 的首步启动。下方的文件检查会在 `md.cpt` 缺失或为空时阻止启动。检查点无法找回时，在独立目录从已验收的起点重新运行，并单独记录。 [GROMACS 2026.3 mdrun](https://manual.gromacs.org/2026.3/onlinehelp/gmx-mdrun.html)
 
 **环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘占用取决于体系大小与模拟时长。
 
 ```bash
-ls -lh md.cpt md.tpr md.log md.xtc
-gmx mdrun -v -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
+(
+  set -e
+  test -s md.cpt
+  ls -lh md.cpt md.tpr md.log md.xtc
+  gmx mdrun -v -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
+)
 ```
 
 ### 延长已有生产模拟
@@ -223,10 +227,14 @@ gmx mdrun -v -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
 **环境：** `docking-gromacs`。**预期文件或核查依据：** `md.tpr`, `md_extended.tpr`。耗时和磁盘占用取决于体系大小与模拟时长。
 
 ```bash
-gmx convert-tpr -s md.tpr -extend 10000 -o md_extended.tpr
-gmx mdrun -v -s md_extended.tpr -deffnm md -cpi md.cpt -append  "${md_backend[@]}" -cpt 15
-gmx check -f md.xtc
-tail -25 md.log
+(
+  set -e
+  test -s md.cpt
+  gmx convert-tpr -s md.tpr -extend 10000 -o md_extended.tpr
+  gmx mdrun -v -s md_extended.tpr -deffnm md -cpi md.cpt -append "${md_backend[@]}" -cpt 15
+  gmx check -f md.xtc
+  tail -25 md.log
+)
 ```
 
 按日志和轨迹末帧核对达到预期步数与时间，再进入分析。若多次延长，从最近一次使用的 TPR 继续延长，并保留各次 TPR 和日志。

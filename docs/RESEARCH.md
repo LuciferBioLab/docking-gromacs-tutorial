@@ -67,7 +67,7 @@ Run from the replicate directory with PLIP in a separate environment. Output is 
 
 Create a separate results directory and use the CHARMM soluble protein–small-molecule example from gmx_MMPBSA upstream as a compatibility check. Reimage and subsample a full-system XTC against the matching TPR, verify the receptor and ligand group IDs, and use the corresponding processed CHARMM topology. For GB, check supported radii and the GB model against the installed version. For PB, record ionic strength, radii, solvent/solute dielectrics and sampling stride. A 0.15 M bulk salt example is distinct from the final explicit ion count. Select groups and window from the actual run, then review the conversion log and per-frame outputs.<sup>[R8](#research-ref-8)</sup>
 
-For gmx_MMPBSA 1.7.0, save the following starting settings as `charmm_pbsa.in`. These radii are specific to CHARMM. The converter omits CHARMM CMAP terms. Assess that limitation before interpreting quantitative endpoint values.
+For gmx_MMPBSA 1.7.0, save the following starting settings as `charmm_pbsa.in`. `PBRadii=7` assigns CHARMM-specific radii and `radiopt=0` uses those radii from the converted topology. The converter omits CHARMM CMAP terms. Assess that limitation before interpreting quantitative endpoint values.<sup>[R8](#research-ref-8)</sup>
 
 ```ini
 &general
@@ -86,7 +86,7 @@ For gmx_MMPBSA 1.7.0, save the following starting settings as `charmm_pbsa.in`. 
 gmx_MMPBSA -nogui -i charmm_pbsa.in -cs md.tpr -ct charmm_window.xtc -ci index.ndx -cg "$protein_group" "$ligand_group" -cp md_processed.top -o CHARMM_PBSA.dat -eo CHARMM_PBSA.csv
 ```
 
-Set both shell group variables for the reviewed index before running. Input syntax and environment installation are in [the endpoint walkthrough](ANALYSIS.md#endpoint-energy). Start on a few frames and scale according to the measured runtime and disk cost.
+Set both shell group variables for the reviewed index before running. Input syntax and environment installation are in [the endpoint walkthrough](ANALYSIS.md#endpoint-energy). The four-frame input is an example of software compatibility testing. The upstream fixture uses groups `Protein` and `JZ4`, `com.tpr`, `com_traj.xtc`, and `topol.top` with its accompanying `toppar/` includes. Confirm that the summary and per-frame CSV correspond to the intended groups and frame count before expanding the analysis. These settings were checked against the upstream example. This repository has no independent CHARMM endpoint result.<sup>[R8](#research-ref-8)</sup>
 
 Use relative alchemical binding free energies for a well-defined set of congeneric, consistently parameterized ligands with agreed atom mappings. Absolute binding free energies require a separate restraint and standard-state protocol. Both require state overlap and convergence diagnostics. AI docking models can supply additional candidate poses for independent redocking, chemical and geometric checks.<sup>[R9](#research-ref-9)</sup>
 

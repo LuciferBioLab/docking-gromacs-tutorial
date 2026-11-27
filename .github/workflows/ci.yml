@@ -1,0 +1,73 @@
+name: Documentation and public example
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: make check-docs fixtures
+      - run: python -m pip install -r environment/docs.txt
+      - run: make site
+      - uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: |
+            *.md
+            docs/**/*.md
+            examples/**/*.md
+
+  external-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --timeout 30 --max-retries 2 --scheme https --scheme http './*.md' './docs/**/*.md' './examples/**/*.md'
+          fail: true
+
+  redocking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+      - name: Run the pinned 1IEP docking path
+        shell: micromamba-shell {0}
+        run: make dock RUN=runs/ci-1iep THREADS=2
+      - name: Test workflow verification helpers
+        shell: micromamba-shell {0}
+        run: python -m unittest discover -s tests -v
+
+  md-smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+      - name: Run stages 01–12
+        shell: micromamba-shell {0}
+        run: make smoke RUN=runs/ci-md THREADS=2
+      - name: Package reviewed public data only
+        shell: micromamba-shell {0}
+        run: python scripts/package_smoke.py runs/ci-md 1iep-cpu-smoke.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 1iep-cpu-smoke
+          path: 1iep-cpu-smoke.zip

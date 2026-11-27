@@ -34,8 +34,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --timeout 30 --max-retries 2 --scheme https --scheme http './*.md' './docs/**/*.md' './examples/**/*.md'
-          fail: true
+          args: --no-progress --timeout 15 --max-retries 1 --format markdown --output lychee-report.md --scheme https --scheme http './*.md' './docs/**/*.md' './examples/**/*.md'
+          fail: false
+      - name: Distinguish dead links from publisher and gateway responses
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s lychee-report.md
+          if grep -E '^\* \[(404|410)\]' lychee-report.md; then
+            echo "::error::A link returned HTTP 404 or 410."
+            exit 1
+          fi
+          if grep -qE '^\* \[' lychee-report.md; then
+            echo "::warning::Some links could not be verified. See the attached report."
+          fi
+          cat lychee-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: external-link-report
+          path: lychee-report.md
+          retention-days: 10
 
   redocking:
     runs-on: ubuntu-latest

@@ -26,6 +26,8 @@ The baseline protocol is designed for a soluble protein and one noncovalently bo
   Start with local input files and review the receptor structure and ligand microstate.
 - **复杂体系或有报错 / Complex system or an error.** 对照[复杂体系与排错指南](docs/TROUBLESHOOTING.md#troubleshooting-contents)判断该从哪一步检查。  
   Use the troubleshooting guide to identify the first affected stage or a system-specific preparation route.
+- **未知口袋或需复核对接结果 / Unknown pocket or docking validation.** 阅读[多阶段对接验证指南](docs/DOCKING_VALIDATION.md)，按受体修复、网格覆盖、局部位姿和相互作用复核逐步验收。  
+  Follow the multi-stage docking guide to check receptor preparation, box coverage, local poses, and interaction assignments.
 
 **官方速查 / Upstream documentation**  
 [AutoDock Vina 手册](https://autodock-vina.readthedocs.io/en/latest/) · [Uni-Dock 文档](https://github.com/dptech-corp/Uni-Dock/tree/main/unidock) · [Meeko 手册](https://meeko.readthedocs.io/) · [GROMACS 官网](https://www.gromacs.org/) · [GROMACS 2026.3 手册](https://manual.gromacs.org/2026.3/) · [开源 PyMOL](https://github.com/schrodinger/pymol-open-source)
@@ -40,6 +42,7 @@ The baseline protocol is designed for a soluble protein and one noncovalently bo
   - [01. 部署 / Environment setup](#setup) · [02. 共晶重对接 / Reference redocking](#benchmark)
   - [03. 受体与配体制备 / Structure preparation](#docking) · [本地 PDB/SDF 输入 / Local inputs](#local-inputs) · [04. CPU/CUDA 批量对接 / Batch docking](#batch-docking)
   - [05. 对接位姿交接 / Pose transfer](#pose-handoff) · [旧 ADT 结果恢复 / Legacy ADT recovery](#legacy-adt-handoff)
+  - [多阶段对接与验证 / Multi-stage docking and validation](docs/DOCKING_VALIDATION.md)
 - **06–10 · 参数化、建系与模拟 / Parameterization, system setup, and simulation**
   - [06. 两套力场与配体参数 / Force fields and ligand parameters](#topology) · [07. 蛋白拓扑与组装 / Protein topology and assembly](#complex-assembly)
   - [08. MDP 参数 / Run parameters](#simulation) · [09. 建系、最小化与平衡 / Setup and equilibration](#equilibration)

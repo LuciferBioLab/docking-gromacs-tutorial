@@ -34,8 +34,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --timeout 15 --max-retries 1 --format markdown --output lychee-report.md --scheme https --scheme http './*.md' './docs/**/*.md' './examples/**/*.md'
+          args: --no-progress --timeout 15 --max-retries 1 --scheme https --scheme http './*.md' './docs/**/*.md' './examples/**/*.md'
           fail: false
+          output: lychee-report.md
+          format: markdown
+          jobSummary: false
       - name: Distinguish dead links from publisher and gateway responses
         shell: bash
         run: |

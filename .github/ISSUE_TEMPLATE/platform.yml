@@ -1,0 +1,30 @@
+name: Installation or platform
+description: Report Linux, WSL2, Windows, CUDA, or scheduler problems
+title: "[Platform] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux
+        - WSL2
+        - Native Windows Vina
+        - Linux cluster
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Repository version, tool version and backend
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Command and error
+      description: Include the exit status and first error. Remove hostnames and personal paths.
+      render: shell
+    validations:
+      required: true

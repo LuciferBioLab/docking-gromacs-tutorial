@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this reproducible workflow, cite the version used and the underlying software and structure records."
+title: "Docking and GROMACS: A Reproducible Protein–Ligand Simulation Tutorial"
+type: software
+authors:
+  - name: LuciferBioLab
+version: 0.1.0
+repository-code: "https://github.com/LuciferBioLab/docking-gromacs-tutorial"
+license:
+  - CC-BY-4.0
+  - MIT
+keywords:
+  - molecular docking
+  - molecular dynamics
+  - GROMACS
+  - reproducibility

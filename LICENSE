@@ -1,0 +1,16 @@
+Repository licensing
+====================
+
+Copyright (c) 2026 LuciferBioLab.
+
+Original tutorial prose, original diagrams, and repository documentation are
+licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+See licenses/CC-BY-4.0.txt for the full legal text.
+
+Original executable scripts, commands and code examples, the Makefile, and
+original configuration files are licensed under the MIT License.
+See licenses/MIT.txt for the full license text.
+
+Third-party data and material retain their original terms and notices.
+See examples/1iep/PROVENANCE.md and examples/regression/PROVENANCE.md.
+Those terms take precedence for their respective third-party files.

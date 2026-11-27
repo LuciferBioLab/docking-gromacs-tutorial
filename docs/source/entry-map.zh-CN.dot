@@ -1,0 +1,8 @@
+digraph routes {
+  graph [rankdir=TB, bgcolor="#eef4fa",pad=0.3, nodesep=0.45,ranksep=0.42,dpi=150];
+  node [shape=box,style="rounded,filled",fontname="Noto Sans CJK SC",color="#355772",fillcolor="white",fontcolor="#13334b",margin="0.24,0.14"];
+  edge [color="#467080",penwidth=1.5,arrowsize=0.7];
+  root [label="1IEP 工作流",fillcolor="#183c59",fontcolor="white"];
+  dock [label="01–05  对接",fillcolor="#dff4f2"]; md [label="06–10  分子动力学",fillcolor="#e5edff"]; analysis [label="11–12  分析与出图",fillcolor="#f1eaff"];
+  root -> dock; root -> md; root -> analysis;
+}

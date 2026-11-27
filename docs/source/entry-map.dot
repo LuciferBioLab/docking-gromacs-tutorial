@@ -1,0 +1,8 @@
+digraph routes {
+  graph [rankdir=TB, bgcolor="#eef4fa",pad=0.3, nodesep=0.45,ranksep=0.42,dpi=150];
+  node [shape=box,style="rounded,filled",fontname="DejaVu Sans",color="#355772",fillcolor="white",fontcolor="#13334b",margin="0.24,0.14"];
+  edge [color="#467080",penwidth=1.5,arrowsize=0.7];
+  root [label="1IEP workflow",fillcolor="#183c59",fontcolor="white"];
+  dock [label="01–05  Docking",fillcolor="#dff4f2"]; md [label="06–10  MD",fillcolor="#e5edff"]; analysis [label="11–12  Analysis",fillcolor="#f1eaff"];
+  root -> dock; root -> md; root -> analysis;
+}

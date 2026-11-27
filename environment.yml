@@ -1,0 +1,14 @@
+name: docking-gromacs
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - vina=1.2.7
+  - gromacs=2026.3=nompi_*
+  - ambertools=26.0
+  - acpype=2023.10.27
+  - meeko=0.8.0
+  - rdkit=2026.03.1
+  - gemmi=0.7.5
+  - openbabel=3.2.1

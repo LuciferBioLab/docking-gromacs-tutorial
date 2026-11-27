@@ -1,0 +1,32 @@
+site_name: Docking and GROMACS
+repo_url: https://github.com/LuciferBioLab/docking-gromacs-tutorial
+theme:
+  name: material
+  language: en
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: en
+          default: true
+          name: English
+        - locale: zh
+          name: 简体中文
+exclude_docs: |
+  source/
+nav:
+  - Home: index.md
+  - Quickstart: QUICKSTART.md
+  - Workflow: WORKFLOW.md
+  - Environment: ENVIRONMENT.md
+  - Docking: DOCKING.md
+  - System setup: SYSTEM_SETUP.md
+  - Simulation: SIMULATION.md
+  - Analysis: ANALYSIS.md
+  - Validation: DOCKING_VALIDATION.md
+  - Research extensions: RESEARCH.md
+  - Troubleshooting: TROUBLESHOOTING.md
+  - FAQ: FAQ.md
+  - Glossary: GLOSSARY.md
+  - References: REFERENCES.md

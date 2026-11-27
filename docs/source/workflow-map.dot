@@ -1,0 +1,20 @@
+digraph {
+  graph [bgcolor="#f5f8ff", fontname="Noto Sans", labelloc=t, label="Docking to molecular dynamics", fontsize=24, pad=.42, rankdir=TB, ranksep=.38, nodesep=.30]
+  node [shape=box, style="rounded,filled", fillcolor=white, color="#b4c4db", fontname="Noto Sans", fontsize=13, margin=".20,.14", penwidth=1.4, fontcolor="#152743"]
+  edge [color="#7290b4", arrowsize=.68, penwidth=1.4]
+  source [label="Source PDB + SDF\nPyMOL · Molscrub · RDKit"]
+  prepare [label="Docking input\nMeeko or AutoDockTools"]
+  dock [label="CPU · AutoDock Vina\nCUDA · Uni-Dock", fillcolor="#dceffd"]
+  mapped [label="A · Metadata available\nMeeko → SDF"]
+  legacy [label="B · Metadata unavailable\nOriginal SDF + RDKit mapping"]
+  audit [label="Verify graph, stereo, charge and coordinates\nRDKit · Open Babel"]
+  amber [label="AMBER99SB-ILDN + GAFF2\nAmberTools · ACPYPE"]
+  charmm [label="CHARMM36m + CGenFF\nStream converter"]
+  simulate [label="Build → minimize → equilibrate → sample\nGROMACS · CPU or CUDA", fillcolor="#e8e3fb"]
+  analysis [label="Trajectory analysis and figures\nGROMACS · PLIP/ProLIF · PyMOL · Python"]
+  source -> prepare -> dock
+  dock -> {mapped legacy} -> audit
+  audit -> {amber charmm} -> simulate -> analysis
+  {rank=same; mapped legacy}
+  {rank=same; amber charmm}
+}

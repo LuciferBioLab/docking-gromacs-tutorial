@@ -1,0 +1,44 @@
+name: Workflow or scientific validation
+description: Report an unexpected result or failure in steps 01–12
+title: "[Workflow] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - 01–03 Environment or inputs
+        - 04–05 Docking or pose transfer
+        - 06–08 Parameters, topology or MDP
+        - 09–10 Equilibration or production
+        - 11–12 Analysis or reproducibility
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Repository tag or commit and tool versions
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and backend
+      placeholder: Linux or WSL2; CPU or CUDA
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Minimal command and first error
+      description: Use the public 1IEP example or remove private paths, structures and credentials.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and observed outputs
+    validations:
+      required: true

@@ -1,0 +1,2 @@
+id,receptor_pdbqt,ligand_pdbqt,box,seed,exhaustiveness,num_modes
+job01,dock/receptor.pdbqt,dock/ligand.pdbqt,dock/box.txt,202601,8,5

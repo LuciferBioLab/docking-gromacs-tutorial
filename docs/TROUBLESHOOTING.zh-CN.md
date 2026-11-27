@@ -2,7 +2,24 @@
 
 [English](TROUBLESHOOTING.md) · **简体中文**
 
-[主教程目录](../README.zh-CN.md#contents) · [参考文献与软件引用](../README.zh-CN.md#references)
+[仓库首页](../README.zh-CN.md#contents)
+
+## 首条报错索引
+
+<a name="triage"></a>
+
+| 报错或现象 | 可能原因 | 优先处理 |
+| --- | --- | --- |
+| 分组已选到配体，但报 `has no donors AND has no acceptors` | 配体 topology（拓扑）缺元素字段 | [核对原子序数](#atomic-number-analysis) |
+| `ValueError: interrupted residues in PDB: {'A:438'}` | 固定公开示例有一条乱序 PDB 记录 | 用示例专用的坐标不变排序步骤 |
+| `Explicit valence for atom # 16 N, 4, is greater than permitted` | 示例 MOL2 与 RDKit 的价态表示不一致 | 通过 Open Babel 转回 SDF，验证化学图与 +1 电荷 |
+| 有低 RMSD 的低排名结果而首名 RMSD 高 | 采到了近天然 docking pose（对接位姿），但评分排名靠后 | 单列首名与最佳采样结果 |
+| 所有 docking pose（对接位姿）固定坐标系 RMSD 高 | 盒、参考坐标、采样或原子映射问题 | 复查盒、receptor（受体）坐标系和对称图映射 |
+| MD 配体 RMSD 高而接触不变 | 可能是 PBC 映像或坐标顺序不匹配 | 重建映像、按蛋白拟合并检查 topology（拓扑）顺序 |
+| 原子数相同但顺序不同 | 坐标拼接或排序错误 | 按 topology（拓扑）核对原子名和坐标对应 |
+| 早期 SETTLE 或 LINCS 报错 | 可能有严重冲突或约束、初始模型问题 | 核查结构、最小化和短试跑参数 |
+
+[主教程目录](../README.zh-CN.md#contents) · [参考文献与软件引用](REFERENCES.zh-CN.md#references)
 
 本页使用通用体系和文件名。先定位第一个异常阶段，保留原始日志、输入文件和软件版本。表中的故障标记是搜索关键词，实际措辞随软件版本和后端而异。
 
@@ -55,7 +72,7 @@
 
 - **receptor（受体）模板匹配失败** 核对报错前后的残基、原子名、缺失 heavy atom（重原子）、链、altloc、端基和氢状态，先查明必要的配位、辅因子与非标准基团，再返回制备。<sup>[4](#ref-4)</sup> [Meeko receptor preparation](https://meeko.readthedocs.io/en/develop/rec_cli_options.html) · [GROMACS pdb2gmx](https://manual.gromacs.org/documentation/current/onlinehelp/gmx-pdb2gmx.html)
 - **配体制备失败** 按来源核对原始 SDF 的记录号、bond order（键级）、stereochemistry（立体化学）、净电荷和盐形式。2D SDF 先按确认的微观状态生成 3D，Meeko 前确认显式氢。 [Meeko ligand input requirements](https://meeko.readthedocs.io/en/develop/lig_prep_basic.html) · [Molscrub CLI](https://molscrub.readthedocs.io/en/latest/cli.html)
-- **输出为空或恢复错误** 先看退出码、第一条错误与输出目录，再对照任务清单、PDBQT `MODEL`、评分和 SDF 记录。映射丢失时用已验证原始 SDF 模板恢复，或重新制备并对接。原位 heavy atom（重原子）坐标须与选中的 PDBQT `MODEL` 对应。 [Meeko export](https://meeko.readthedocs.io/en/develop/export_usage.html) · [docking pose（对接位姿）交接](../README.zh-CN.md#pose-handoff)
+- **输出为空或恢复错误** 先看退出码、第一条错误与输出目录，再对照任务清单、PDBQT `MODEL`、评分和 SDF 记录。映射丢失时用已验证原始 SDF 模板恢复，或重新制备并对接。原位 heavy atom（重原子）坐标须与选中的 PDBQT `MODEL` 对应。 [Meeko export](https://meeko.readthedocs.io/en/develop/export_usage.html) · [docking pose（对接位姿）交接](DOCKING.zh-CN.md#pose-handoff)
 - **重对接采样到参考 docking pose（对接位姿）但排名偏低** 同时报第一名 RMSD、候选中最佳 RMSD、该姿态的排名与关键接触。核查搜索盒和状态，并跨种子、构象及适用的 receptor（受体）模型复核。把排名偏差保留在记录里。<sup>[5](#ref-5),[6](#ref-6)</sup> [Vina tutorial](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [DockRMSD](https://doi.org/10.1186/s13321-019-0362-7) · [Docking validation review](https://doi.org/10.1007/s10822-026-00849-8)
 
 <a name="topology-errors"></a>
@@ -78,6 +95,8 @@
 
 **LINCS、SETTLE 或非有限值** 先定位异常起始的步数和相关原子，回看最小化最大力、局部重叠、原子顺序、topology（拓扑）与参考位置限制。有些警告在失败阶段的第一帧前出现，需检查上一阶段末态。修复原因后，从一致的输入重新预处理与验收。 [GROMACS common errors](https://manual.gromacs.org/documentation/current/user-guide/run-time-errors.html) · [Constraint algorithms](https://manual.gromacs.org/documentation/current/reference-manual/algorithms/constraint-algorithms.html)
 
+**环境：** `Bash`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+
 ```bash
 # Set LOG to the actual log for the failing stage.
 LOG='npt.log'
@@ -93,7 +112,7 @@ grep -inE 'warning|lincs|settle|fatal error|non-finite|not finite|nan|maximum fo
 - **TPR 在目标机读取失败** 先比对 GROMACS 版本并核对文件校验值。用目标机 `gmx dump -s md.tpr` 只读测试。格式不兼容时优先使用兼容版本，或用归档 MDP、topology（拓扑）、坐标、索引及兼容 checkpoint 重新生成并核对运行设置。归档原 TPR 和重建版本。 [gmx dump](https://manual.gromacs.org/documentation/current/onlinehelp/gmx-dump.html) · [gmx grompp](https://manual.gromacs.org/documentation/current/onlinehelp/gmx-grompp.html)
 - **CUDA 启动失败或显存不足** 对照资源分配、实际程序构建、驱动和日志。用单任务、单设备的小规模作业隔离问题。对接批量不足可调小批次。GROMACS 并行和卸载选项按所用构建与版本核查。 [GROMACS performance](https://manual.gromacs.org/documentation/current/user-guide/mdrun-performance.html) · [Uni-Dock](https://github.com/dptech-corp/Uni-Dock)
 - **checkpoint 追加失败** 检查运行前缀、TPR/CPT 对应关系，以及原始输出是否仍完整。修复配套文件或按官方流程分段续跑并归档实际分段。 [Managing long simulations](https://manual.gromacs.org/documentation/current/user-guide/managing-simulations.html)
-- **生产状态不清楚** 将输入准备、生产运行和完成验收分开记录。`md.tpr` 可读时可核对编译参数，正式运行的起止步数以日志、checkpoint 和实际轨迹为据。 [生产交接](../README.zh-CN.md#server-handoff)
+- **生产状态不清楚** 将输入准备、生产运行和完成验收分开记录。`md.tpr` 可读时可核对编译参数，正式运行的起止步数以日志、checkpoint 和实际轨迹为据。 [生产交接](SIMULATION.zh-CN.md#server-handoff)
 
 [返回排错目录](#troubleshooting-contents)
 
@@ -105,7 +124,7 @@ grep -inE 'warning|lincs|settle|fatal error|non-finite|not finite|nan|maximum fo
 
 ### 网课错误流程图
 
-按箭头阅读常见误操作。下表说明各项后果及纠正方法。对接分数与 RMSD 的判读见[主教程的分析章节](../README.zh-CN.md#analysis)。
+按箭头阅读常见误操作。下表说明各项后果及纠正方法。对接分数与 RMSD 的判读见[主教程的分析章节](ANALYSIS.zh-CN.md#analysis)。
 
 ```mermaid
 flowchart TD
@@ -125,7 +144,6 @@ flowchart TD
     class Claim outcome
 ```
 
-
 | 常见做法 | 会发生什么 | 正确操作 |
 | --- | --- | --- |
 | 删除所有非蛋白原子 | 可能丢失界定口袋的共晶配体、维持配位的金属或必要辅因子。 | 先另存参考配体，记录各异质成分的保留与去除理由。需要金属或辅因子的体系专项建模。 |
@@ -137,9 +155,13 @@ flowchart TD
 
 <a name="chem3d-pymol-topology"></a>
 
+![图 2. 风险来自未经核验的化学身份与原子顺序交接。](../assets/legacy-comparison.zh-CN.png)
+
+*图 2. 风险来自未经核验的化学身份与原子顺序交接。*
+
 ### 网课错误方法与本教程路线
 
-先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列以新项目的 Meeko 路线为例，先恢复 SDF 并核对化学与 docking pose（对接位姿），再转 MOL2 和参数化。已经完成对接的 ADT 项目可使用[原始 SDF 模板恢复](../README.zh-CN.md#legacy-adt-handoff)。
+先在 Chem3D 优化小分子并导出 `ligand.mol2`，再用 AutoDockTools（ADT）制备 `ligand.pdbqt`。Vina 对接后获得 `output.pdbqt`。图中左列在对接后把选定的 PDBQT 直接用 PyMOL 另存为 MOL2，交给 ACPYPE 等工具生成 `lig.top` 或 `lig.itp`。右列以新项目的 Meeko 路线为例，先恢复 SDF 并核对化学与 docking pose（对接位姿），再转 MOL2 和参数化。已经完成对接的 ADT 项目可使用[原始 SDF 模板恢复](DOCKING.zh-CN.md#legacy-adt-handoff)。
 
 ```mermaid
 flowchart TD
@@ -194,6 +216,8 @@ docking pose（对接位姿）`"]
 
 例如，一个来自 Meeko 对接任务的 PDBQT 应先恢复为 SDF，再取经核对的记录转 MOL2。以下在步骤 05 的目录运行，`1` 是核对过的记录号示例。
 
+**环境：** `docking-gromacs`。**预期文件或核查依据：** `docked_poses.sdf`。耗时和磁盘规划见快速入门的分阶段表。
+
 ```bash
 mk_export.py selected_run.pdbqt -s docked_poses.sdf
 obabel docked_poses.sdf -f 1 -l 1 -O lig_pose.sdf
@@ -218,3 +242,37 @@ obabel lig_pose.sdf -O lig_pose.mol2
 7. <a name="ref-7"></a> Abraham MJ, Murtola T, Schulz R, et al. *GROMACS: High performance molecular simulations through multi-level parallelism from laptops to supercomputers*. SoftwareX. 2015. [DOI](https://doi.org/10.1016/j.softx.2015.06.001)
 8. <a name="ref-8"></a> *Reliability and reproducibility checklist for molecular dynamics simulations*. Commun Biol. 2023. [DOI](https://doi.org/10.1038/s42003-023-04653-0)
 9. <a name="ref-9"></a> O'Boyle NM, Banck M, James CA, Morley C, Vandermeersch T, Hutchison GR. *Open Babel: An open chemical toolbox*. J Cheminform. 2011. [DOI](https://doi.org/10.1186/1758-2946-3-33)
+
+<a name="atomic-number-analysis"></a>
+
+## 新版氢键分析与 ACPYPE 原子类型
+
+**使用公开 1IEP 示例在 GROMACS 2026.3 实际复现。** 配体分组成功选到 69 个原子，但修复原子类型前，GROMACS 报出以下错误。
+
+```text
+Selection 'resname UNL' has no donors AND has no acceptors! Nothing to be done.
+```
+
+先核对分组是否对应配体，再检查配体 `[ atomtypes ]` 和对应 TPR 中的原子序数。部分 ACPYPE 版本省略这列可选字段。公开示例的脚本核对 ACPYPE 原子顺序和元素后，在新 ITP 中按原子类型补写原子序数，其余参数原样保留。从已核查 topology（拓扑）和顺序匹配的坐标重建 TPR，再运行氢键分析。如果配体本身确实缺乏供体或受体，仍须结合其化学结构解释。[GROMACS topology 文件格式](https://manual.gromacs.org/2026.3/reference-manual/topologies/topology-file-formats.html) · [氢键方法论文](https://doi.org/10.1021/acs.jcim.3c02087)
+
+**环境：** `docking-gromacs`。从已完成的短测试目录运行。输出独立 XVG，记录时间（ps）与计数。此示例有 11 帧，分析数秒内完成。
+
+**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+
+```bash
+gmx hbond -s md/md.tpr -f analysis/centered.xtc -n md/analysis_full.ndx -r 'group "Protein"' -t 'group "Ligand"' -num analysis/hbond.xvg
+```
+
+参数见 [GROMACS 2026.3 hbond](https://manual.gromacs.org/2026.3/onlinehelp/gmx-hbond.html)。[实测序列](../examples/expected/hbond.csv)每帧为 3–5 条。仅在检查具体供受体化学性质与几何后做氢键归属。
+
+<a name="mapping-negative-test"></a>
+
+## 故意错配原子的实验
+
+在临时副本中交换 MOL2 最前两个原子的三维坐标，并保留 ACPYPE topology（拓扑）和原子名，阶段 07 实际报出以下错误。
+
+```text
+ValueError: ACPYPE coordinate or atom-order mismatch at atom 1.
+```
+
+用同一份经核验的 MOL2 重新取得匹配的配体 GRO 与 ITP，并保存映射。即使原子数和名称表面一致，该错误仍须先解决。

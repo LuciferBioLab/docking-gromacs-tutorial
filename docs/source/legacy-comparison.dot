@@ -1,0 +1,19 @@
+digraph {
+  graph [bgcolor="#f5f8ff", fontname="Noto Sans", labelloc=t, label="What changes when a docked pose becomes an MD input?", fontsize=21, pad=.42, rankdir=TB, ranksep=.36, nodesep=.38]
+  node [shape=box, style="rounded,filled", fontname="Noto Sans", fontsize=13, fillcolor=white, margin=".20,.14", penwidth=1.5, fontcolor="#152743"]
+  edge [arrowsize=.68, penwidth=1.4, color="#7290b4"]
+  wrong [label="Tutorial shortcut", color="#e2a380", fillcolor="#fff0e5"]
+  right [label="Verified chemical handoff", color="#70b4af", fillcolor="#e0f4f1"]
+  w1 [label="Chem3D → MOL2\nADT → PDBQT → docking", color="#e2a380"]
+  r1 [label="Source SDF + chosen microstate\nMeeko/ADT → PDBQT → docking", color="#70b4af"]
+  w2 [label="Docked PDBQT → PyMOL → MOL2\nChemistry and mapping unverified", color="#e2a380"]
+  r2 [label="Meeko metadata or original SDF map\nVerify graph, stereo, charge, coordinates", color="#70b4af"]
+  w3 [label="Parameter file can be written\nChemical identity remains untested", color="#e2a380", fillcolor="#fff0e5"]
+  r3 [label="Verified pose + compatible parameters\nCheck coordinate–topology order", color="#70b4af", fillcolor="#e0f4f1"]
+  wrong -> w1 -> w2 -> w3
+  right -> r1 -> r2 -> r3
+  {rank=same; wrong right}
+  {rank=same; w1 r1}
+  {rank=same; w2 r2}
+  {rank=same; w3 r3}
+}

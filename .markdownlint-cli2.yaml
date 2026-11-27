@@ -1,0 +1,15 @@
+config:
+  default: false
+  MD001: true
+  MD009:
+    br_spaces: 2
+    strict: false
+  MD040: true
+  MD041: true
+  MD047: true
+globs:
+  - "*.md"
+  - "docs/**/*.md"
+  - "examples/**/*.md"
+ignores:
+  - "runs/**"

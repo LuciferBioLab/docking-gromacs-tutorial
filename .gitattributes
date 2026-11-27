@@ -1,0 +1,8 @@
+* text=auto
+*.sh text eol=lf
+*.md text eol=lf
+*.pdb -text
+*.sdf -text
+*.webp binary
+*.png binary
+*.zip binary

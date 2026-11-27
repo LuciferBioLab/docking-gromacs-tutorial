@@ -1,0 +1,19 @@
+digraph {
+  graph [bgcolor="#f5f8ff", fontname="Noto Sans CJK SC", labelloc=t, label="docking pose（对接位姿）如何交接给 MD？", fontsize=21, pad=.42, rankdir=TB, ranksep=.36, nodesep=.38]
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=13, fillcolor=white, margin=".20,.14", penwidth=1.5, fontcolor="#152743"]
+  edge [arrowsize=.68, penwidth=1.4, color="#7290b4"]
+  wrong [label="网课快捷路线", color="#e2a380", fillcolor="#fff0e5"]
+  right [label="经核验的化学交接", color="#70b4af", fillcolor="#e0f4f1"]
+  w1 [label="Chem3D → MOL2\nADT → PDBQT → 对接", color="#e2a380"]
+  r1 [label="原始 SDF + 已选择的微观状态\nMeeko/ADT → PDBQT → 对接", color="#70b4af"]
+  w2 [label="对接所得 PDBQT → PyMOL → MOL2\n化学身份与原子映射待验证", color="#e2a380"]
+  r2 [label="Meeko 元数据或原始 SDF 映射\n核验化学图、立体化学、电荷和坐标", color="#70b4af"]
+  w3 [label="工具可写出参数文件\n化学身份仍待验证", color="#e2a380", fillcolor="#fff0e5"]
+  r3 [label="已核验 docking pose（对接位姿）与相容参数\n核对坐标和 topology（拓扑）顺序", color="#70b4af", fillcolor="#e0f4f1"]
+  wrong -> w1 -> w2 -> w3
+  right -> r1 -> r2 -> r3
+  {rank=same; wrong right}
+  {rank=same; w1 r1}
+  {rank=same; w2 r2}
+  {rank=same; w3 r3}
+}

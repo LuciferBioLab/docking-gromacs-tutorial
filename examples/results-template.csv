@@ -1,0 +1,2 @@
+case,method,backend,tool_version,seed,poses,best_score_kcal_mol,top1_rmsd_A,best_rmsd_A,wall_s,ns_per_day,atoms,notes
+1IEP,Vina,CPU,1.2.7,202601,,,,,,,Complete fields from your own run

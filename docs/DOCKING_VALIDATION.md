@@ -2,7 +2,9 @@
 
 **English** · [简体中文](DOCKING_VALIDATION.zh-CN.md)
 
-[Main tutorial](../README.md#contents) · [Reference redocking](../README.md#benchmark) · [Troubleshooting](TROUBLESHOOTING.md#troubleshooting-contents)
+[Repository home](../README.md#contents)
+
+[Main tutorial](../README.md#contents) · [Reference redocking](ENVIRONMENT.md#benchmark) · [Troubleshooting](TROUBLESHOOTING.md#troubleshooting-contents)
 
 This guide covers noncovalent docking with an unknown pocket, a multichain receptor, or multiple ligand starting conformers. The workflow proceeds through receptor repair, conformer generation, overlapping-box screening, local refinement, pose validation, and interaction review. The commands use generic filenames and illustrative settings. Qualify the settings with a public co-crystal control and record them with the workflow version.<sup>[1](#ref-1)</sup>
 
@@ -29,6 +31,8 @@ This guide covers noncovalent docking with an unknown pocket, a multichain recep
 | Repeated subunit poses or ambiguous contact labels | Symmetry can duplicate sites, and proximity and chemical interactions use distinct criteria. | Check receptor-based symmetry and verify donor–acceptor geometry separately. [Interaction review](#interaction-review) |
 
 Run this preflight in the same shell as the analysis. Change the package list to match the active stage.
+
+**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 python -c 'import sys; print(sys.executable)'
@@ -76,9 +80,10 @@ if check.missingAtoms:
 
 Run in a fresh working directory in Linux or WSL. Use the reviewed receptor coordinates and archive the preparation JSON, processed PDB, PDBQT, and both logs.
 
+**Environment:** `Bash`. **Expected files or evidence:** `receptor.pdbqt`, `receptor.pdb`. For planning, use the per-stage budget in the quickstart.
+
 ```bash
-if mk_prepare_receptor.py --read_pdb receptor_qc.pdb -o receptor -p -j --write_pdb receptor.pdb \
-    > prep.stdout.log 2> prep.stderr.log; then
+if mk_prepare_receptor.py --read_pdb receptor_qc.pdb -o receptor -p -j --write_pdb receptor.pdb  > prep.stdout.log 2> prep.stderr.log; then
     test -s receptor.pdbqt && test -s receptor.json && test -s receptor.pdb
 else
     status=$?
@@ -88,6 +93,8 @@ fi
 ```
 
 When launching from PowerShell, redirect inside WSL. Confirm the WSL working directory and the active environment first. Review warnings on templates and retained components after checking the exit code and artifacts. [Microsoft PowerShell native-command guidance](https://learn.microsoft.com/en-us/powershell/scripting/learn/shell/running-commands)
+
+**Environment:** `PowerShell`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```powershell
 wsl.exe -- pwd
@@ -159,7 +166,9 @@ for index, cid in enumerate(selected, 1):
 print(f"Converged {len(ranked)}/{len(ids)}; retained {len(selected)} conformer families")
 ```
 
-Meeko takes a 3D ligand structure. Preserve the chemical mapping metadata, and validate the molecular graph, stereochemistry, formal charge, and mapped heavy-atom coordinates after export. Record PDBQT partial-charge checks separately from SDF formal charge. Pool equivalent conformers even when they came from different inputs or embedding seeds.<sup>[6](#ref-6)</sup> [Meeko ligand and pose transfer](../README.md#pose-handoff) · [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
+Meeko takes a 3D ligand structure. Preserve the chemical mapping metadata, and validate the molecular graph, stereochemistry, formal charge, and mapped heavy-atom coordinates after export. Record PDBQT partial-charge checks separately from SDF formal charge. Pool equivalent conformers even when they came from different inputs or embedding seeds.<sup>[6](#ref-6)</sup> [Meeko ligand and pose transfer](DOCKING.md#pose-handoff) · [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
+
+**Environment:** `Bash`. **Expected files or evidence:** `ligand.pdbqt`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 mk_prepare_ligand.py -i conformers/conformer_01.sdf -o ligand.pdbqt
@@ -272,6 +281,8 @@ print(f"Validated {len(models)} complete poses")
 
 The example runs one screening task. Use independent task directories and explicit inputs for each box, starting conformer, and seed. Verify the ligand chemistry and atom mapping before passing the result to refinement.
 
+**Environment:** `docking-gromacs`. **Expected files or evidence:** `poses.partial.pdbqt`. For planning, use the per-stage budget in the quickstart.
+
 ```bash
 set -eu
 expected_heavy=$(python -c 'from rdkit import Chem; m=Chem.SDMolSupplier("conformers/conformer_01.sdf")[0]; print(m.GetNumHeavyAtoms())')
@@ -356,7 +367,7 @@ def fixed_frame_rmsd(probe, reference):
     return rdMolAlign.CalcRMS(left, right, maxMatches=100000)
 ```
 
-For a co-crystal control, report the top-ranked pose, the closest sampled pose to the experimental ligand, and the rank of that closest pose. This distinguishes failure to sample the reference geometry from failure to rank it first. Report seed reproducibility alongside the experimental control and model scope. [Public redocking benchmark](../README.md#benchmark)
+For a co-crystal control, report the top-ranked pose, the closest sampled pose to the experimental ligand, and the rank of that closest pose. This distinguishes failure to sample the reference geometry from failure to rank it first. Report seed reproducibility alongside the experimental control and model scope. [Public redocking benchmark](ENVIRONMENT.md#benchmark)
 
 <a name="interaction-review"></a>
 
@@ -388,6 +399,8 @@ def transfer_receptor_frame(moving_ca, fixed_ca, ligand_xyz):
 
 **Build the complex from the actual scoring model.** Recover the chosen pose to SDF and verify mapped heavy-atom coordinates against its source mode. Compare the scoring PDBQT and complex PDB by atom identity, coordinates, and component inventory. A one-way nearest-neighbor check serves as a geometric preflight. Retain verified connectivity and assign an unambiguous ligand residue identifier in the complex.
 
+**Environment:** `docking-gromacs`. **Expected files or evidence:** `selected_pose.sdf`. For planning, use the per-stage budget in the quickstart.
+
 ```bash
 # selected_pose.pdbqt is one audited MODEL/ENDMDL block with its Meeko mapping.
 mk_export.py selected_pose.pdbqt -s selected_pose.sdf
@@ -395,7 +408,7 @@ mk_export.py selected_pose.pdbqt -s selected_pose.sdf
 plip -f complex.pdb -o interactions -x -t --maxthreads 1
 ```
 
-**Select the intended ligand in PLIP reports.** A report may contain independent sites for cofactors or lipids. Select the XML site by residue name, chain, and residue number, then cross-check atom indices against identities and coordinates. Review donor/acceptor identity, protonation, D···A and H···A distances, and the D–H···A angle for each putative hydrogen bond. Flag questionable assignments. Distinguish proximity, putative hydrogen bonds, and ring-centroid distances in figures. Archive the PyMOL session and the measurement table.<sup>[10](#ref-10),[11](#ref-11)</sup> [PLIP CLI and source](https://github.com/pharmai/plip) · [Publication figures](../README.md#publication-figures)
+**Select the intended ligand in PLIP reports.** A report may contain independent sites for cofactors or lipids. Select the XML site by residue name, chain, and residue number, then cross-check atom indices against identities and coordinates. Review donor/acceptor identity, protonation, D···A and H···A distances, and the D–H···A angle for each putative hydrogen bond. Flag questionable assignments. Distinguish proximity, putative hydrogen bonds, and ring-centroid distances in figures. Archive the PyMOL session and the measurement table.<sup>[10](#ref-10),[11](#ref-11)</sup> [PLIP CLI and source](https://github.com/pharmai/plip) · [Publication figures](ANALYSIS.md#publication-figures)
 
 <a name="validation-references"></a>
 
@@ -433,4 +446,4 @@ plip -f complex.pdb -o interactions -x -t --maxthreads 1
 10. <a name="ref-10"></a> Salentin S, et al. PLIP: fully automated protein–ligand interaction profiler. *Nucleic Acids Res.* 2015. [DOI](https://doi.org/10.1093/nar/gkv315)
 11. <a name="ref-11"></a> Schake P, et al. PLIP 2025: introducing protein–protein interactions to the protein–ligand interaction profiler. *Nucleic Acids Res.* 2025. [DOI](https://doi.org/10.1093/nar/gkaf361)
 
-We acknowledge the upstream developers and data maintainers. For broader software and force-field citations and scope, see the [main tutorial references](../README.md#references).
+We acknowledge the upstream developers and data maintainers. For broader software and force-field citations and scope, see the [main tutorial references](REFERENCES.md#references).

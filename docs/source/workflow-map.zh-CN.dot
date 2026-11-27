@@ -1,0 +1,20 @@
+digraph {
+  graph [bgcolor="#f5f8ff", fontname="Noto Sans CJK SC", labelloc=t, label="从分子对接到分子动力学", fontsize=24, pad=.42, rankdir=TB, ranksep=.38, nodesep=.30]
+  node [shape=box, style="rounded,filled", fillcolor=white, color="#b4c4db", fontname="Noto Sans CJK SC", fontsize=13, margin=".20,.14", penwidth=1.4, fontcolor="#152743"]
+  edge [color="#7290b4", arrowsize=.68, penwidth=1.4]
+  source [label="原始 PDB + SDF\nPyMOL · Molscrub · RDKit"]
+  prepare [label="对接输入\nMeeko 或 AutoDockTools"]
+  dock [label="CPU · AutoDock Vina\nCUDA · Uni-Dock", fillcolor="#dceffd"]
+  mapped [label="A · 有映射元数据\nMeeko → SDF"]
+  legacy [label="B · 无映射元数据\n原始 SDF + RDKit 映射"]
+  audit [label="核验化学图、立体化学、电荷及坐标\nRDKit · Open Babel"]
+  amber [label="AMBER99SB-ILDN + GAFF2\nAmberTools · ACPYPE"]
+  charmm [label="CHARMM36m + CGenFF\nStream 转换工具"]
+  simulate [label="建系 → 最小化 → 平衡 → 采样\nGROMACS · CPU 或 CUDA", fillcolor="#e8e3fb"]
+  analysis [label="轨迹分析与制图\nGROMACS · PLIP/ProLIF · PyMOL · Python"]
+  source -> prepare -> dock
+  dock -> {mapped legacy} -> audit
+  audit -> {amber charmm} -> simulate -> analysis
+  {rank=same; mapped legacy}
+  {rank=same; amber charmm}
+}

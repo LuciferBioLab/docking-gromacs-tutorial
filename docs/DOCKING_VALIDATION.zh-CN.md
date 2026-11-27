@@ -2,7 +2,9 @@
 
 [English](DOCKING_VALIDATION.md) · **简体中文**
 
-[主教程](../README.zh-CN.md#contents) · [共晶重对接](../README.zh-CN.md#benchmark) · [排错指南](TROUBLESHOOTING.zh-CN.md#troubleshooting-contents)
+[仓库首页](../README.zh-CN.md#contents)
+
+[主教程](../README.zh-CN.md#contents) · [共晶重对接](ENVIRONMENT.zh-CN.md#benchmark) · [排错指南](TROUBLESHOOTING.zh-CN.md#troubleshooting-contents)
 
 适用于结合口袋未知、receptor（受体）由多条链组成，或一个配体可能具有多种起始构象的非共价对接。流程覆盖**receptor（受体）修复 → 配体构象 → 重叠盒初筛 → 候选口袋精细搜索 → docking pose（对接位姿）验收 → 相互作用复核**。代码使用通用文件名和示例设置。阈值应在公开共晶对照上预先验收，并随工作流版本归档。<sup>[1](#ref-1)</sup>
 
@@ -29,6 +31,8 @@
 | 同源亚基出现相似结果，或距离线被当作氢键 | 对称位置可能重复计数，几何近接与化学作用采用不同定义。 | 分别做 receptor（受体）坐标系下的对称性检查和 donor（供体）和 acceptor（受体）复核，见[第 6 节](#interaction-review)。 |
 
 在实际运行命令的终端检查环境。将 receptor（受体）修复环境中的两个包替换成当前阶段需要的包即可复用此命令。
+
+**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 python -c 'import sys; print(sys.executable)'
@@ -76,9 +80,10 @@ if check.missingAtoms:
 
 在 Linux 或 WSL 终端的全新输出目录中运行。`receptor_qc.pdb` 是已经完成上述 receptor（受体）审核的坐标文件。保留 JSON、处理后 PDB、PDBQT 及两路日志。
 
+**环境：** `Bash`。**预期文件或核查依据：** `receptor.pdbqt`, `receptor.pdb`。耗时和磁盘规划见快速入门的分阶段表。
+
 ```bash
-if mk_prepare_receptor.py --read_pdb receptor_qc.pdb -o receptor -p -j --write_pdb receptor.pdb \
-    > prep.stdout.log 2> prep.stderr.log; then
+if mk_prepare_receptor.py --read_pdb receptor_qc.pdb -o receptor -p -j --write_pdb receptor.pdb  > prep.stdout.log 2> prep.stderr.log; then
     test -s receptor.pdbqt && test -s receptor.json && test -s receptor.pdb
 else
     status=$?
@@ -88,6 +93,8 @@ fi
 ```
 
 从 Windows PowerShell 调用 WSL 时，可用同一条命令在 Linux 层分流 stderr。先确认 WSL 当前目录对应工作目录，并已激活或明确指定包含 Meeko 的环境。以下示例在当前 WSL 登录环境可找到命令时使用。退出码为 0 且产物存在后，仍需检查模板和组分警告。 [Microsoft PowerShell native-command guidance](https://learn.microsoft.com/en-us/powershell/scripting/learn/shell/running-commands)
+
+**环境：** `PowerShell`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```powershell
 wsl.exe -- pwd
@@ -159,7 +166,9 @@ for index, cid in enumerate(selected, 1):
 print(f"Converged {len(ranked)}/{len(ids)}; retained {len(selected)} conformer families")
 ```
 
-Meeko 接收带三维坐标的 SDF。制备后检查对接文件的化学映射元数据，回读 docking pose（对接位姿）时核对分子图、手性与 formal charge（形式电荷），并在固定坐标系比较对应 heavy atom（重原子）。对 PDBQT partial charge（部分电荷）采用单独的数值检查，并与 SDF 的 formal charge（形式电荷）分开记录。来自不同文件或嵌入种子的同一类构象在统计时合并。<sup>[6](#ref-6)</sup> [docking pose（对接位姿）交接](../README.zh-CN.md#pose-handoff) · [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
+Meeko 接收带三维坐标的 SDF。制备后检查对接文件的化学映射元数据，回读 docking pose（对接位姿）时核对分子图、手性与 formal charge（形式电荷），并在固定坐标系比较对应 heavy atom（重原子）。对 PDBQT partial charge（部分电荷）采用单独的数值检查，并与 SDF 的 formal charge（形式电荷）分开记录。来自不同文件或嵌入种子的同一类构象在统计时合并。<sup>[6](#ref-6)</sup> [docking pose（对接位姿）交接](DOCKING.zh-CN.md#pose-handoff) · [Meeko export documentation](https://meeko.readthedocs.io/en/develop/export_usage.html)
+
+**环境：** `Bash`。**预期文件或核查依据：** `ligand.pdbqt`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 mk_prepare_ligand.py -i conformers/conformer_01.sdf -o ligand.pdbqt
@@ -272,6 +281,8 @@ print(f"Validated {len(models)} complete poses")
 
 下面运行一个全局任务。每个搜索盒、起始构象和种子在独立任务目录中使用相应配置及文件名。结果转入精细阶段前另做配体化学与 atom mapping（原子映射）检查。
 
+**环境：** `docking-gromacs`。**预期文件或核查依据：** `poses.partial.pdbqt`。耗时和磁盘规划见快速入门的分阶段表。
+
 ```bash
 set -eu
 expected_heavy=$(python -c 'from rdkit import Chem; m=Chem.SDMolSupplier("conformers/conformer_01.sdf")[0]; print(m.GetNumHeavyAtoms())')
@@ -356,7 +367,7 @@ def fixed_frame_rmsd(probe, reference):
     return rdMolAlign.CalcRMS(left, right, maxMatches=100000)
 ```
 
-对公开共晶重对接同时报告排名第一 docking pose（对接位姿）、搜索到的最接近实验 docking pose（对接位姿），以及后者的排名。这样可以区分搜索未命中与命中后排序偏低。多种子重现率描述计算搜索重复性，单独报告实验参照与模型限制。 [共晶重对接](../README.zh-CN.md#benchmark)
+对公开共晶重对接同时报告排名第一 docking pose（对接位姿）、搜索到的最接近实验 docking pose（对接位姿），以及后者的排名。这样可以区分搜索未命中与命中后排序偏低。多种子重现率描述计算搜索重复性，单独报告实验参照与模型限制。 [共晶重对接](ENVIRONMENT.zh-CN.md#benchmark)
 
 <a name="interaction-review"></a>
 
@@ -388,6 +399,8 @@ def transfer_receptor_frame(moving_ca, fixed_ca, ligand_xyz):
 
 **用实际对接的 receptor（受体）模型构建复合物。** 将所选单一 docking pose（对接位姿）导出 SDF。核对配体与原始输出的 heavy atom（重原子）映射和坐标。用于绘图的 receptor（受体） PDB 与打分用 PDBQT 需按原子身份核对坐标和组分；单向最近邻距离适合做快速几何排查。保留 receptor（受体）中已核实的连接、配体化学结构和复合物中唯一的配体残基标识。
 
+**环境：** `docking-gromacs`。**预期文件或核查依据：** `selected_pose.sdf`。耗时和磁盘规划见快速入门的分阶段表。
+
 ```bash
 # selected_pose.pdbqt is one audited MODEL/ENDMDL block with its Meeko mapping.
 mk_export.py selected_pose.pdbqt -s selected_pose.sdf
@@ -395,7 +408,7 @@ mk_export.py selected_pose.pdbqt -s selected_pose.sdf
 plip -f complex.pdb -o interactions -x -t --maxthreads 1
 ```
 
-**PLIP 报告按目标配体读取。** XML 可能同时包含保留辅因子或脂质对应的位点。按配体残基名、链和残基号锁定报告条目，再按原子身份和坐标回查索引。对候选氢键分别核对 donor（供体）和 acceptor（受体）身份与质子化、D···A 与 H···A 距离及 D–H···A 角度。蛋白供体类型可疑、角度偏离或索引不匹配时，保留待核验标记。结构图把普通近接、候选氢键和环心距离分别标注，并保留 PyMOL 源会话和距离表。<sup>[10](#ref-10),[11](#ref-11)</sup> [PLIP CLI and source](https://github.com/pharmai/plip) · [论文出图与组图](../README.zh-CN.md#publication-figures)
+**PLIP 报告按目标配体读取。** XML 可能同时包含保留辅因子或脂质对应的位点。按配体残基名、链和残基号锁定报告条目，再按原子身份和坐标回查索引。对候选氢键分别核对 donor（供体）和 acceptor（受体）身份与质子化、D···A 与 H···A 距离及 D–H···A 角度。蛋白供体类型可疑、角度偏离或索引不匹配时，保留待核验标记。结构图把普通近接、候选氢键和环心距离分别标注，并保留 PyMOL 源会话和距离表。<sup>[10](#ref-10),[11](#ref-11)</sup> [PLIP CLI and source](https://github.com/pharmai/plip) · [论文出图与组图](ANALYSIS.zh-CN.md#publication-figures)
 
 <a name="validation-references"></a>
 
@@ -433,4 +446,4 @@ plip -f complex.pdb -o interactions -x -t --maxthreads 1
 10. <a name="ref-10"></a> Salentin S, et al. PLIP: fully automated protein–ligand interaction profiler. *Nucleic Acids Res.* 2015. [DOI](https://doi.org/10.1093/nar/gkv315)
 11. <a name="ref-11"></a> Schake P, et al. PLIP 2025: introducing protein–protein interactions to the protein–ligand interaction profiler. *Nucleic Acids Res.* 2025. [DOI](https://doi.org/10.1093/nar/gkaf361)
 
-感谢上游开源项目和数据维护者。通用的软件引用、force field（力场）资料及适用范围见[主教程的参考文献与软件引用](../README.zh-CN.md#references)。
+感谢上游开源项目和数据维护者。通用的软件引用、force field（力场）资料及适用范围见[主教程的参考文献与软件引用](REFERENCES.zh-CN.md#references)。

@@ -1,0 +1,7 @@
+# All six fields are in Å. Replace with your receptor's actual values.
+center_x = CENTER_X
+center_y = CENTER_Y
+center_z = CENTER_Z
+size_x = SIZE_X
+size_y = SIZE_Y
+size_z = SIZE_Z

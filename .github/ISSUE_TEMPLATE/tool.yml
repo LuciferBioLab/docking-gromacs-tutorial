@@ -1,0 +1,25 @@
+name: Tool or documentation correction
+description: Report a command, link, translation, or version mismatch
+title: "[Tool/docs] "
+labels: [documentation]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Tool and version
+      placeholder: GROMACS 2026.3, Vina 1.2.7, or documentation only
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: File, section and affected language
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Proposed correction and evidence
+      description: Link the relevant manual, minimal reproducible example, or first error.
+    validations:
+      required: true

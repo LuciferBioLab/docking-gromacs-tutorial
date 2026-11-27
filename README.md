@@ -11,6 +11,16 @@ This guide documents a reproducible workflow for academic research and training.
 **适用范围 / Scope.** 默认体系为水溶液中的可溶蛋白与单个非共价结合、化学状态明确的有机小分子。膜蛋白、共价配体、必需金属或辅因子、非标准残基需要专项建模。  
 The baseline protocol is designed for a soluble protein and one noncovalently bound organic small molecule in water. Membrane proteins, covalent ligands, essential metals or cofactors, and nonstandard residues require system-specific protocols.
 
+<a name="contact"></a>
+
+## 联系与合作 / Contact and collaboration
+
+欢迎就分子对接、GROMACS 分子动力学、工作流复现与科研项目合作来信交流。  
+Email is welcome for technical discussions on molecular docking, GROMACS simulations, workflow reproducibility, and research collaboration.
+
+- [lucifer.qsq@gmail.com](mailto:lucifer.qsq@gmail.com)
+- [3069326069@qq.com](mailto:3069326069@qq.com)
+
 <a name="start-here"></a>
 
 ## 从这里开始 / Start here
@@ -36,6 +46,7 @@ The baseline protocol is designed for a soluble protein and one noncovalently bo
 
 ## 目录 / Contents
 
+- [联系与合作 / Contact and collaboration](#contact)
 - **概览 / Overview**
   - [完整流程图 / Workflow overview](#overview) · [工具与文件交接 / Tools and file handoffs](#toolchain)
 - **01–05 · 对接与位姿恢复 / Docking and pose recovery**
@@ -56,7 +67,6 @@ The baseline protocol is designed for a soluble protein and one noncovalently bo
 - **13–16 · 来源、引用与致谢 / Sources, citation, and acknowledgments**
   - [方法选择依据 / Evidence for method choices](#method-evidence) · [13. 工具、官网与源码 / Tools and upstream sources](#sources)
   - [14. 论文与工具引用 / References and software citation](#references) · [15. 免责声明 / Disclaimer](#disclaimer) · [16. 致谢 / Acknowledgments](#acknowledgments)
-  - [联系与合作 / Contact and collaboration](#contact)
 
 <a name="overview"></a>
 
@@ -1908,16 +1918,6 @@ For specialized systems, cite the lipid, carbohydrate, membrane-building, and to
 
 欢迎提交可复现的问题或更正。请附相关章节、软件版本、运行平台以及足以复现的最小示例。若教程对你的研究或教学有帮助，欢迎给仓库点 Star。  
 Corrections and reproducible issue reports are welcome. Include the relevant section, software versions, platform, and a minimal example. If the guide helps your research or teaching, consider starring the repository. [GitHub Issues](https://github.com/LuciferBioLab/docking-gromacs-tutorial/issues)
-
-<a name="contact"></a>
-
-### 联系与合作 / Contact and collaboration
-
-欢迎就分子对接、GROMACS 分子动力学、工作流复现与科研项目合作来信交流。  
-Email is welcome for technical discussions on molecular docking, GROMACS simulations, workflow reproducibility, and research collaboration.
-
-- [lucifer.qsq@gmail.com](mailto:lucifer.qsq@gmail.com)
-- [3069326069@qq.com](mailto:3069326069@qq.com)
 
 [返回目录 / Back to contents](#contents)
 

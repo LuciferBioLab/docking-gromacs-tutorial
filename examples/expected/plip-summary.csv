@@ -1,0 +1,4 @@
+tool,version,fixture,time_ps,type,count
+PLIP,2.4.0,1IEP,0,hydrophobic_interaction,11
+PLIP,2.4.0,1IEP,0,hydrogen_bond,4
+PLIP,2.4.0,1IEP,0,pi_stack,1

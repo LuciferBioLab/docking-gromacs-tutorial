@@ -92,5 +92,7 @@
       "en": "[Back to contents](../README.md#contents)",
       "zh": "[返回目录](../README.zh-CN.md#contents)"
     }
-  ]
+  ],
+  "paired_on": "2026-11-28",
+  "setup_verified_at": "https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914"
 }

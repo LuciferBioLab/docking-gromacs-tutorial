@@ -2,6 +2,8 @@
 
 [English](RESEARCH.md) · **简体中文**
 
+中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+
 [仓库首页](../README.zh-CN.md#contents)
 
 <a name="sampling"></a>
@@ -57,7 +59,7 @@ OpenFF Sage 和 OpenFF Interchange 可以将相容的小分子体系导出至 GR
 plip -f analysis/complex.pdb -o analysis/plip -x
 ```
 
-在重复目录中用独立环境执行 PLIP。输出 XML 报告。单帧用于结构注释，占有率用 ProLIF 轨迹工作流计算。时间与磁盘占用随帧数和接触数量改变。投稿时保留导出的图与可编辑布局，成图尺寸、分辨率和字形遵循期刊要求。用 Inkscape 组装矢量图，用 GIMP 或 Krita 整理栅格图像。见[出图和 agent 说明](ANALYSIS.zh-CN.md#agent-workflow)。
+在重复目录中用独立环境执行 PLIP。输出 XML 报告。PLIP 2.4.0 已在公开 1IEP 短测试的单帧完成分析。按该工具的原子分类与几何规则，得到 4 条氢键、11 个疏水接触与 1 个 π 堆积事件。[核验结果](../examples/expected/plip-summary.csv) · [Adasme et al., PLIP 2021](https://doi.org/10.1093/nar/gkab294)。单帧用于结构注释，占有率用 ProLIF 轨迹工作流计算。时间与磁盘占用随帧数和接触数量改变。投稿时保留导出的图与可编辑布局，成图尺寸、分辨率和字形遵循期刊要求。用 Inkscape 组装矢量图，用 GIMP 或 Krita 整理栅格图像。见[出图和 agent 说明](ANALYSIS.zh-CN.md#agent-workflow)。
 
 <a name="free-energy"></a>
 

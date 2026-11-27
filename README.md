@@ -2,7 +2,13 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
+Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+
 A reproducible workflow for soluble protein–ligand docking and molecular dynamics. Use dedicated modeling for membrane systems, covalent ligands, essential metals or cofactors, and nonstandard residues. The public 1IEP example uses a defined **+1** ligand microstate.
+
+| Intended use | Requires a specialized protocol |
+| --- | --- |
+| Graduate students and researchers using Bash to reproduce soluble protein–ligand docking, MD, or figures | Membrane assemblies, covalently bound ligands, essential metals or cofactors, and nonstandard residues with unverified parameters |
 
 [FAQ](docs/FAQ.md) · [Version matrix](docs/QUICKSTART.md#version-matrix) · [Validation boundary](docs/QUICKSTART.md#validation-boundary)
 

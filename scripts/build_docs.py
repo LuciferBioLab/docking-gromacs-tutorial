@@ -18,6 +18,16 @@ def build(check=False, dry_run=False):
                 block["shared"] if "shared" in block else block[language]
                 for block in spec["blocks"]
             ).rstrip() + "\n"
+            if spec.get("paired_on"):
+                date = spec["paired_on"]
+                url = spec["setup_verified_at"]
+                stamp = (
+                    f"Languages synchronized {date}. [Verified workflow commit]({url})."
+                    if language == "en" else
+                    f"中英文同步于 {date}。[已验证的工作流提交]({url})。"
+                )
+                title, switch, body = expected.split("\n\n", 2)
+                expected = "\n\n".join((title, switch, stamp, body))
             dest = ROOT / paths[language]
             if dry_run:
                 print(dest.relative_to(ROOT))

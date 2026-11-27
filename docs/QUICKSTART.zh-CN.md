@@ -2,6 +2,8 @@
 
 [English](QUICKSTART.md) · **简体中文**
 
+中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+
 [仓库首页](../README.zh-CN.md#contents)
 
 <a name="dock"></a>

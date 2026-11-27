@@ -2,6 +2,8 @@
 
 **English** · [简体中文](DOCKING_VALIDATION.zh-CN.md)
 
+Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+
 [Repository home](../README.md#contents)
 
 [Main tutorial](../README.md#contents) · [Reference redocking](ENVIRONMENT.md#benchmark) · [Troubleshooting](TROUBLESHOOTING.md#troubleshooting-contents)

@@ -2,7 +2,13 @@
 
 [English](README.md) · **简体中文**
 
+中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+
 面向可溶性蛋白–配体体系的可复现分子对接与分子动力学工作流。膜体系、共价配体、必需金属或辅因子、非标准残基需采用专用建模方案。公开 1IEP 示例采用已确定的 **+1** 配体微观状态。
+
+| 适用 | 需要专用方案 |
+| --- | --- |
+| 使用 Bash 复现可溶性蛋白–配体对接、MD 或制图的研究者与学习者 | 膜组装、共价配体、必需金属或辅因子，以及参数尚未核查的非标准残基 |
 
 [常见问题](docs/FAQ.zh-CN.md) · [版本矩阵](docs/QUICKSTART.zh-CN.md#version-matrix) · [验证范围](docs/QUICKSTART.zh-CN.md#validation-boundary)
 

@@ -2,6 +2,8 @@
 
 **English** · [简体中文](RESEARCH.zh-CN.md)
 
+Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+
 [Repository home](../README.md#contents)
 
 <a name="sampling"></a>
@@ -57,7 +59,7 @@ Use the matching complex frame from the verified trajectory as PLIP input. Prese
 plip -f analysis/complex.pdb -o analysis/plip -x
 ```
 
-Run from the replicate directory with PLIP in a separate environment. Output is an XML report. One frame gives structure-level annotations; use the ProLIF trajectory workflow for occupancies. Time and disk scale with number of frames and interactions. For submission panels, retain the exported image and editable layout. Use the journal's specifications for final dimensions, resolution and fonts. Inkscape can assemble vector plots; GIMP or Krita can prepare raster panels. Follow [figure and agent guidance](ANALYSIS.md#agent-workflow).
+Run from the replicate directory with PLIP in a separate environment. Output is an XML report. PLIP 2.4.0 completed on the public 1IEP smoke frame. It annotated four hydrogen bonds, 11 hydrophobic contacts and one π-stacking interaction using its own typing and geometric rules. [Checked result](../examples/expected/plip-summary.csv) · [Adasme et al., PLIP 2021](https://doi.org/10.1093/nar/gkab294). One frame gives structure-level annotations; use the ProLIF trajectory workflow for occupancies. Time and disk scale with number of frames and interactions. For submission panels, retain the exported image and editable layout. Use the journal's specifications for final dimensions, resolution and fonts. Inkscape can assemble vector plots; GIMP or Krita can prepare raster panels. Follow [figure and agent guidance](ANALYSIS.md#agent-workflow).
 
 <a name="free-energy"></a>
 

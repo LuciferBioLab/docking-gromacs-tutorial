@@ -127,5 +127,7 @@
       "en": "Check the end step and time against the log and trajectory before analysis. For another extension, start from the latest TPR used and retain the input and log for each extension.\n\n### Independent replicates\n\nRun independent replicates in separate directories with distinct NVT `gen-seed` values, for example 202601, 202602, and 202603. Equilibrate and simulate each replicate independently. Select starting poses and controls based on the study design. [MD reliability and reproducibility checklist](https://www.nature.com/articles/s42003-023-04653-0)\n\n[Back to contents](../README.md#contents)",
       "zh": "按日志和轨迹末帧核对达到预期步数与时间，再进入分析。若多次延长，从最近一次使用的 TPR 继续延长，并保留各次 TPR 和日志。\n\n### 独立重复\n\n独立重复在不同目录使用不同的 NVT `gen-seed`，例如 202601、202602、202603，分别完成 NVT、NPT 和后续模拟。根据研究问题决定是否使用不同起始姿态或对照。 [MD reliability and reproducibility checklist](https://www.nature.com/articles/s42003-023-04653-0)\n\n[返回目录](../README.zh-CN.md#contents)"
     }
-  ]
+  ],
+  "paired_on": "2026-11-28",
+  "setup_verified_at": "https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914"
 }

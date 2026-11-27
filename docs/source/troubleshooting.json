@@ -59,5 +59,7 @@
       "en": "Recreate the matched ligand GRO and ITP from the same verified MOL2 and preserve the mapping. Stop at this check even when atom counts and names appear to match.",
       "zh": "用同一份经核验的 MOL2 重新取得匹配的配体 GRO 与 ITP，并保存映射。即使原子数和名称表面一致，该错误仍须先解决。"
     }
-  ]
+  ],
+  "paired_on": "2026-11-28",
+  "setup_verified_at": "https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914"
 }

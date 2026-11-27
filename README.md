@@ -21,6 +21,13 @@ Email is welcome for technical discussions on molecular docking, GROMACS simulat
 - [lucifer.qsq@gmail.com](mailto:lucifer.qsq@gmail.com)
 - [3069326069@qq.com](mailto:3069326069@qq.com)
 
+![分子对接到分子动力学封面示意图。红色路径代表从 PDBQT 猜测配体化学结构的网课捷径，青紫色路径代表先核验配体化学身份和位姿，再交接给 MD 的多工具流程。 / Docking to dynamics: the tutorial shortcut and the checked, multi-tool handoff.](assets/workflow-cover.webp)
+
+**封面导读 / Cover guide**
+
+- **网课捷径 / Tutorial shortcut.** 仅从 PDBQT 回转 MOL2 来生成配体拓扑，需要重新推断缺失的键级等化学信息。 / Converting PDBQT alone back to MOL2 for topology generation requires inferring missing chemical information, including bond orders. [错误做法对照 / Workflow comparison](docs/TROUBLESHOOTING.md#chem3d-pymol-topology)
+- **核验后交接 / Checked handoff.** 用 AutoDock Vina 或 Uni-Dock 对接，经 Meeko 映射导出，或用原始 SDF 与核实的原子映射在 RDKit 中恢复坐标。确认键级、手性、形式电荷和重原子坐标后，再进行配体参数化与 GROMACS 模拟。 / Dock with AutoDock Vina or Uni-Dock. Recover the pose using Meeko metadata or a validated atom mapping from the original SDF with RDKit. Verify bond orders, stereochemistry, formal charge, and heavy-atom coordinates before parameterization and GROMACS simulation. [位姿交接 / Pose transfer](#pose-handoff) · [核验细节 / Validation guide](docs/DOCKING_VALIDATION.md)
+
 <a name="start-here"></a>
 
 ## 从这里开始 / Start here

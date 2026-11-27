@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
+ROOT = Path(__file__).resolve().parents[1]
+
 ALLOW = (
     "input/1iep_receptorH.pdb", "input/1iep_ligand.sdf", "input/SHA256SUMS",
     "dock/box.txt", "dock/docked.pdbqt", "dock/lig_pose.sdf", "dock/redocking.csv",
@@ -18,6 +20,10 @@ ALLOW = (
 
 def package(source, destination, dry_run):
     inputs = [(path, source / path) for path in ALLOW]
+    inputs.extend([
+        ("input/PROVENANCE.md", ROOT / "examples/1iep/PROVENANCE.md"),
+        ("input/Apache-2.0-AutoDock-Vina.txt", ROOT / "licenses/Apache-2.0-AutoDock-Vina.txt"),
+    ])
     if dry_run:
         print("\n".join(path for path, _ in inputs))
         return

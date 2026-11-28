@@ -47,6 +47,14 @@ Choose the protein force field for the scientific protocol and use the correspon
 
 Keep two independent directories. Match the source chemical graph, docked coordinates, temperature, salt target, time budgets and scientific observables. Use each force field's own parameter and switching scheme. Compare replicate distributions of ligand RMSD and contacts, density and uncertainty. The public example has a measured AMBER CPU smoke result. The matching CGenFF run requires a reviewed stream and its corresponding cutoff port.
 
+| Record before comparing | How to make it comparable |
+| --- | --- |
+| Starting structures | Archive the same reviewed receptor model, ligand microstate, heavy-atom correspondence and docking pose for both branches. Review coordinate differences introduced by parameterization. |
+| Parameter and run inputs | Keep a separate archive for each branch with the force-field files, ligand parameter set, solvent and ions, processed MDP and expanded topology. Compare duration and thermodynamic targets while preserving each branch's nonbonded and solvent settings. |
+| Analysis | Use corresponding heavy atoms and chain-and-residue labels even if topology atom indices differ. Align on the same protein atom selection and use common analysis windows, frame intervals and contact definitions. Summarize independent replicas separately before comparing distributions. |
+
+This comparison describes the behavior of the two complete protocols. The ligand charge model, water and ion parameters, and nonbonded treatment can all contribute to a difference.
+
 OpenFF Sage plus OpenFF Interchange can export a compatible small-molecule system to GROMACS. LigParGen is an option for a compatible OPLS-AA route. Check functional forms, combination rules, 1–4 scaling, charges, and topology/coordinate order before assembling components.<sup>[R4](#research-ref-4),[R5](#research-ref-5)</sup>
 
 <a name="interaction-analysis"></a>

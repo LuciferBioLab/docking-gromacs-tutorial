@@ -87,6 +87,7 @@ Recorded on **2026-11-28**. The reproducibility target is the same repository sn
 | AmberTools / ACPYPE | 26.0 / 2023.10.27 | 1IEP AM1-BCC and GAFF2 files |
 | GROMACS | 2026.3, conda-forge thread-MPI build | Validation status below |
 | Uni-Dock | 1.2.0, CUDA route | Versioned manual; no CUDA device in this validation |
+| AutoDock-Vina-GPU | 2.1, OpenCL route | [Upstream source reviewed](DOCKING.md#vina-gpu-opencl); GPU run pending |
 | CGenFF | 5.0 cutoff example | Upstream parameter and conversion documentation |
 
 The environment YAML specifies the direct dependencies. The [Linux x86-64 lock](../environment/linux-64.explicit.txt) pins the exact package builds.
@@ -111,7 +112,7 @@ The full 01–12 CPU smoke passed using four CPU threads. Production was 2 ps. T
 | Workflow | Evidence and status |
 | --- | --- |
 | 1 ns CPU quickstart | Preparation and equilibration completed. The last production log record was 96.6 ps. The run ended before the target and left no production checkpoint. |
-| Uni-Dock and GROMACS CUDA | Setup documented. No CUDA throughput measurements. |
+| Uni-Dock, Vina-GPU and GROMACS CUDA | Setup documented. No GPU throughput measurements. |
 | CHARMM and the paired AMBER/CHARMM comparison | Parameterization and comparison design documented. Full runs and the paired comparison remain unverified. |
 | CHARMM MM/PBSA | Settings matched to the upstream 1.7.0 example. Independent reproduction pending. [CHARMM endpoint setup](RESEARCH.md#free-energy) |
 
@@ -119,7 +120,18 @@ For the packaged example, stages 09 and 10 check that the final step in the dyna
 
 Check hashes against the supplied files. Numerical trajectories should be interpreted with the software, inputs and settings recorded. Bitwise equality across CPU/GPU runs is not the scientific acceptance criterion. [Validation and sampling](RESEARCH.md#sampling)
 
-For an output stride `S` in steps and integration step `dt` in ps, the frame interval is `S × dt` ps. For a measured compressed chunk of `B` bytes over `F` frames, budget approximately `B/F × (floor(T_ps/(S × dt)) + 1)` bytes for an XTC with the same atom selection and compression. At 100 ns and 2 fs, 2,500 strides give 5 ps and ~20,001 frames, 5,000 gives 10 ps and ~10,001, and 50,000 gives 100 ps and ~1,001. Estimate the file size from your own pilot and budget extra for reimaging copies.
+<a name="production-budget"></a>
+
+## 100 ns storage and time budget
+
+At 2 fs (`dt = 0.002` ps), 100 ns takes 50,000,000 integration steps. For a fresh run starting at step 0, with a positive output stride `S` in steps, the complete XTC contains `ceil(nsteps / S) + 1` frames. The first and last coordinates are written, so the last interval can be shorter when the end step falls between regular writes. Use actual trajectory timestamps for frame-based analysis. [GROMACS 2026.3 coordinate-output settings](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html#mdp-nstxout-compressed)
+
+| Output interval | `nstxout-compressed` | Complete frames | Estimated XTC per replica |
+| --- | ---: | ---: | ---: |
+| 10 ps | 5,000 | 10,001 | 1.90 GiB |
+| 30 ps | 15,000 | 3,335 | 0.63 GiB |
+
+The estimates use 2,245,348 bytes across 11 full-system frames from the completed public CPU smoke (55,134 atoms, `compressed-x-precision = 1000`). For your own system, multiply the measured bytes per frame by the expected frame count and number of replicas. Reserve space separately for reimaged copies, logs, checkpoints, energy files and any uncompressed trajectory. Budget time as production ns divided by the measured ns/day. At 13.82 ns/day from the short public CPU benchmark, 100 ns would take about 7.24 days per replica, plus setup and equilibration. These figures are extrapolations from the short CPU reference.
 
 
 ## Measured performance on the public CPU fixture
@@ -131,4 +143,4 @@ For an output stride `S` in steps and integration step `dt` in ps, the frame int
 | CPU benchmark | Same TPR, one thread-MPI rank, four OpenMP threads, 5,000 steps | 13.82 ns/day reported by GROMACS |
 | Uni-Dock / GROMACS CUDA | Run on your own allocation | Measurement pending |
 
-The complete 01–12 CPU smoke took about 3 min 16 s, used about 53 MiB including intermediate files, and wrote about 2.2 MiB of compressed production coordinates. The 1 ns stage alone would take about 1 h 44 min at the measured short CPU benchmark rate, plus equilibration and setup. Report medians from repeated equivalent tests for planning. Use the [benchmark script](../scripts/benchmark.sh) and [results table template](../examples/results-template.csv).
+The complete 01–12 CPU smoke took about 3 min 16 s, used about 53 MiB including intermediate files, and wrote about 2.14 MiB of compressed production coordinates. The 1 ns stage alone would take about 1 h 44 min at the measured short CPU benchmark rate, plus equilibration and setup. Report medians from repeated equivalent tests for planning. Use the [benchmark script](../scripts/benchmark.sh) and [results table template](../examples/results-template.csv).

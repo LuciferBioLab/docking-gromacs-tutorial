@@ -87,6 +87,7 @@ make quickstart RUN=runs/1iep-1ns THREADS=4
 | AmberTools / ACPYPE | 26.0 / 2023.10.27 | 1IEP AM1-BCC 与 GAFF2 文件 |
 | GROMACS | 2026.3，conda-forge thread-MPI 构建 | 验证状态见下方 |
 | Uni-Dock | 1.2.0，CUDA 路线 | 对照版本手册；此次验证环境无 CUDA |
+| AutoDock-Vina-GPU | 2.1，OpenCL 路线 | [已核对上游源码](DOCKING.zh-CN.md#vina-gpu-opencl)，待 GPU 实跑 |
 | CGenFF | 5.0 普通截断示例 | 对照上游参数与移植文档 |
 
 `environment.yml` 声明直接依赖。[Linux x86-64 锁文件](../environment/linux-64.explicit.txt) 固定实际软件包构建。
@@ -111,7 +112,7 @@ conda create -n docking-gromacs-locked --file environment/linux-64.explicit.txt
 | 流程 | 验证依据与状态 |
 | --- | --- |
 | 1 ns CPU 快跑 | 已完成制备和平衡。生产日志最后记录到 96.6 ps，未达到计划终点，也未留下生产检查点。 |
-| Uni-Dock 与 GROMACS CUDA | 已整理部署说明，尚无 CUDA 吞吐实测。 |
+| Uni-Dock、Vina-GPU 与 GROMACS CUDA | 已整理部署说明，尚无 GPU 吞吐实测。 |
 | CHARMM 与同体系 AMBER/CHARMM 对照 | 已整理参数化和对照设计，完整运行与对照结果尚待验证。 |
 | CHARMM MM/PBSA | 设置已与上游 1.7.0 示例核对，尚未独立复跑。[CHARMM 端点法](RESEARCH.zh-CN.md#free-energy) |
 
@@ -119,7 +120,18 @@ conda create -n docking-gromacs-locked --file environment/linux-64.explicit.txt
 
 以所附文件的校验和核对完整性；轨迹解读参考软件、输入和设置记录。不同 CPU/GPU 的结果按科学判据核验。[验证与采样](RESEARCH.zh-CN.md#sampling)
 
-若输出间隔为 `S` 步、积分步长为 `dt` ps，保存间隔为 `S × dt` ps。实测压缩轨迹 `F` 帧占 `B` 字节，在原子选择和压缩设置相同时，XTC 约占 `B/F × (floor(T_ps/(S × dt)) + 1)` 字节。100 ns、2 fs 下，每 2,500 步计算为 5 ps、约 20,001 帧；5,000 步为 10 ps、约 10,001 帧；50,000 步为 100 ps、约 1,001 帧。用自己的短试跑测实际大小，并为轨迹后处理留额外空间。
+<a name="production-budget"></a>
+
+## 100 ns 磁盘与耗时估算
+
+积分步长为 2 fs（`dt = 0.002` ps）时，100 ns 需积分 50,000,000 步。从第 0 步开始的新任务，若每 `S` 步写一次轨迹，完整 XTC 含 `ceil(nsteps / S) + 1` 帧。首帧和末帧都会写入，末步未落在常规输出步点上时，最后一个间隔更短。分析时以轨迹实际时间戳为准。[GROMACS 2026.3 坐标输出参数](https://manual.gromacs.org/2026.3/user-guide/mdp-options.html#mdp-nstxout-compressed)
+
+| 输出间隔 | `nstxout-compressed` | 完整帧数 | 每个重复的 XTC 估算 |
+| --- | ---: | ---: | ---: |
+| 10 ps | 5,000 | 10,001 | 1.90 GiB |
+| 30 ps | 15,000 | 3,335 | 0.63 GiB |
+
+估算基于已完成的公开 CPU 短测试。全体系 55,134 个原子，`compressed-x-precision = 1000`，11 帧共 2,245,348 字节。对自己的体系，用实际每帧字节数乘预计帧数和独立重复数，另留重映像轨迹、日志、检查点、能量文件及未压缩轨迹的空间。耗时用生产段 ns 除以实测 ns/day。按公开 CPU 短基准的 13.82 ns/day 外推，每个 100 ns 生产段约 7.24 天，另计制备和平衡。表中数值均来自短测试外推。
 
 
 ## 公开 CPU 示例的实测性能
@@ -131,4 +143,4 @@ conda create -n docking-gromacs-locked --file environment/linux-64.explicit.txt
 | CPU 基准 | 同一 TPR，1 个 thread-MPI rank，4 个 OpenMP 线程，5,000 步 | GROMACS 报告 13.82 ns/day |
 | Uni-Dock / GROMACS CUDA | 在自己的调度配额内运行 | 待实测 |
 
-完整 01–12 CPU 短测试约 3 分 16 秒，含中间文件约 53 MiB，压缩生产轨迹约 2.2 MiB。按短程 CPU 基准外推，仅 1 ns 生产段约需 1 小时 44 分钟，另计平衡和制备。排期使用同等条件下多次测量的中位数。见[基准脚本](../scripts/benchmark.sh)和[结果表模板](../examples/results-template.csv)。
+完整 01–12 CPU 短测试约 3 分 16 秒，含中间文件约 53 MiB，压缩生产轨迹约 2.14 MiB。按短程 CPU 基准外推，仅 1 ns 生产段约需 1 小时 44 分钟，另计平衡和制备。排期使用同等条件下多次测量的中位数。见[基准脚本](../scripts/benchmark.sh)和[结果表模板](../examples/results-template.csv)。

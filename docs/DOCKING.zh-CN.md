@@ -137,13 +137,13 @@ size_z = 20.0
 
 <a name="batch-docking"></a>
 
-## 04. CPU 与 CUDA 批量对接
+## 04. CPU 与 GPU 批量对接
 
 - **输入** PDBQT、对接盒和清单
 - **输出** 输出已打分的 docking pose（对接位姿）和日志
 - **失败时的操作** 续跑前检查失败条目
 
-两条路线共用步骤 03 的 receptor（受体） PDBQT、配体 PDBQT 和搜索盒。为每个筛选条件保留独立目录。可逐个调用 Meeko 生成配体 PDBQT，或用 `--multimol_outdir` 处理已审核的多记录 SDF。保留候选 ID 与原始 SDF 的对应表，并检查重名和漏项。<sup>[7](REFERENCES.zh-CN.md#ref-7)</sup> [Meeko ligand CLI](https://meeko.readthedocs.io/en/develop/lig_cli_options.html)
+各引擎使用步骤 03 的 receptor（受体）PDBQT、配体 PDBQT 和搜索盒。为每个筛选条件保留独立目录。可逐个调用 Meeko 生成配体 PDBQT，或用 `--multimol_outdir` 处理已审核的多记录 SDF。保留候选 ID 与原始 SDF 的对应表，并检查重名和漏项。<sup>[7](REFERENCES.zh-CN.md#ref-7)</sup> [Meeko ligand CLI](https://meeko.readthedocs.io/en/develop/lig_cli_options.html)
 
 ### A. CPU · AutoDock Vina
 
@@ -224,11 +224,16 @@ tail -20 dock/cpu_batch_win_202601/vina.log
 **环境：** `dockgpu`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-conda activate dockgpu
-mkdir dock/gpu_single_202601
-unidock --receptor dock/receptor.pdbqt --gpu_batch ligands/pdbqt/state001.pdbqt  --config dock/box.txt --scoring vina --search_mode balance  --num_modes 20 --seed 202601 --dir dock/gpu_single_202601  > dock/gpu_single_202601/unidock.log 2>&1
-tail -25 dock/gpu_single_202601/unidock.log
-find dock/gpu_single_202601 -maxdepth 1 -type f -name '*.pdbqt' -print
+conda activate dockgpu && (
+  set -euo pipefail
+  job=dock/gpu_single_202601
+  mkdir "$job"
+  unidock --receptor dock/receptor.pdbqt --gpu_batch ligands/pdbqt/state001.pdbqt \
+    --config dock/box.txt --scoring vina --search_mode balance --num_modes 20 \
+    --seed 202601 --dir "$job" > "$job/unidock.log" 2>&1
+  tail -25 "$job/unidock.log"
+  find "$job" -maxdepth 1 -type f -name '*.pdbqt' -print
+)
 ```
 
 批量任务用 `--ligand_index` 读取清单。每行一个相对路径，使用无空格且唯一的文件名。先用小批代表性输入测量显存占用、耗时和输出完整性，再调整批次大小。
@@ -236,9 +241,12 @@ find dock/gpu_single_202601 -maxdepth 1 -type f -name '*.pdbqt' -print
 **环境：** `Bash`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-mkdir dock/gpu_batch_202601
-find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | LC_ALL=C sort  > dock/gpu_batch_202601/ligands.txt
-test -s dock/gpu_batch_202601/ligands.txt
+(
+  set -euo pipefail
+  mkdir dock/gpu_batch_202601
+  find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | LC_ALL=C sort > dock/gpu_batch_202601/ligands.txt
+  test -s dock/gpu_batch_202601/ligands.txt
+)
 ```
 
 确认清单非空后运行。显存不足时用 `split -l 32 dock/gpu_batch_202601/ligands.txt dock/gpu_chunk_` 拆分清单。每次更换清单路径、日志和输出目录。
@@ -246,19 +254,66 @@ test -s dock/gpu_batch_202601/ligands.txt
 **环境：** `dockgpu`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-time unidock --receptor dock/receptor.pdbqt  --ligand_index dock/gpu_batch_202601/ligands.txt  --config dock/box.txt --scoring vina --search_mode balance  --num_modes 20 --seed 202601 --dir dock/gpu_batch_202601  > dock/gpu_batch_202601/unidock.log 2>&1
-wc -l dock/gpu_batch_202601/ligands.txt
-find dock/gpu_batch_202601 -maxdepth 1 -type f -name '*.pdbqt' | wc -l
-tail -25 dock/gpu_batch_202601/unidock.log
+(
+  set -euo pipefail
+  set -o noclobber
+  job=dock/gpu_batch_202601
+  test -s "$job/ligands.txt"
+  time unidock --receptor dock/receptor.pdbqt --ligand_index "$job/ligands.txt" \
+    --config dock/box.txt --scoring vina --search_mode balance --num_modes 20 \
+    --seed 202601 --dir "$job" > "$job/unidock.log" 2>&1
+  wc -l "$job/ligands.txt"
+  find "$job" -maxdepth 1 -type f -name '*.pdbqt' | wc -l
+  tail -25 "$job/unidock.log"
+)
 ```
 
 `fast`、`balance`、`detail` 调整 Uni-Dock 的搜索力度。复筛可换种子或提高搜索力度，并使用新的输出目录。每个文件需有有效姿态和评分记录。按候选 ID 对照清单与输出，查日志中的 CUDA 或解析错误，单独记录未完成项。 [Uni-Dock modes and batch manifest](https://github.com/dptech-corp/Uni-Dock/blob/main/unidock/README.md)
+
+上游 1.2.0 支持默认 30 × 30 × 30 Å 的搜索盒，网格间距为 0.375 Å。超出网格缓冲区的盒会被拒绝。宽范围搜索可记录每个相互重叠的子盒边界，确需使用完整大盒时选 CPU 路线。拆分配体清单只减少批次大小，各盒网格维持原设置。[Uni-Dock 1.2.0 更新记录](https://github.com/dptech-corp/Uni-Dock/blob/main/CHANGELOG.md#120---2026-06-11)
+
+<a name="vina-gpu-opencl"></a>
+
+### C. 可选 GPU 路线 · AutoDock-Vina-GPU 2.1（OpenCL）
+
+按上游说明编译 AutoDock-Vina-GPU 2.1 变体，记录源码提交。Linux Bash 中将 `VINA_GPU_METHOD_DIR` 设为构建完成后的方法目录。若装有 `clinfo`，用 `clinfo -l` 核对 OpenCL 平台是否识别预期的 GPU。使用预编译内核时，确认设备对应的内核文件在 `opencl_binary_path` 所指目录中。原生 Windows 安装按上游 Windows 构建说明操作。<sup>[9](REFERENCES.zh-CN.md#ref-9)</sup> [Vina-GPU 2.1 上游仓库](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1)
+
+完成步骤 03 后，在项目根目录使用此示例。其中一个经过核验的配体放入独立输入目录，每次运行新建目录。搜索盒的六个字段取自 `dock/box.txt`。`thread` 设置 GPU 并行搜索通道数。输出包括 `vinagpu.txt`、`vinagpu.log` 和 `poses/` 中的位姿。耗时以目标 GPU 的样本实测估算。
+
+```bash
+(
+  set -euo pipefail
+  method=$(cd -- "${VINA_GPU_METHOD_DIR:?Set the built Vina-GPU method directory}" && pwd)
+  test -x "$method/AutoDock-Vina-GPU-2-1"
+  test -s dock/receptor.pdbqt
+  test -s dock/box.txt
+  test -s ligands/pdbqt/state001.pdbqt
+  job="$PWD/dock/vinagpu_single_202601"
+  mkdir "$job"
+  mkdir "$job/ligands"
+  cp ligands/pdbqt/state001.pdbqt "$job/ligands/"
+  {
+    printf '%s\n' "receptor = $PWD/dock/receptor.pdbqt" \
+      "ligand_directory = $job/ligands" "output_directory = $job/poses" \
+      "opencl_binary_path = $method" 'thread = 8000' 'seed = 202601'
+    grep -E '^[[:space:]]*(center|size)_[xyz][[:space:]]*=' dock/box.txt
+  } > "$job/vinagpu.txt"
+  (
+    cd "$method"
+    ./AutoDock-Vina-GPU-2-1 --config "$job/vinagpu.txt"
+  ) > "$job/vinagpu.log" 2>&1
+  test -s "$job/poses/state001_out.pdbqt"
+  grep -E '^MODEL|^REMARK VINA RESULT' "$job/poses/state001_out.pdbqt"
+)
+```
+
+用于批量对接时，输入目录只放经过核验且文件名不重复的 PDBQT 文件，逐一对照日志与预期输出。记录设备、引擎变体、通道数和种子。交接 MD 前按[步骤 05](#pose-handoff)核验化学结构和坐标。此路线已核对上游源码，尚未在本仓库用 GPU 实跑。
 
 ### 对接引擎基准比较
 
 用相同输入、口袋和配体清单，记录引擎版本、评分函数、搜索参数、种子、CPU 线程或 GPU 型号、实耗时、成功配体数和峰值显存。用成功配体数除以墙钟时间计算吞吐。分别检查已知配体的重对接所得 docking pose（对接位姿）、关键接触、候选排名和重复种子一致性。CPU 与 CUDA 引擎各自的搜索策略和参数定义有差异，原始分数保留在各自结果表中。<sup>[8](REFERENCES.zh-CN.md#ref-8)</sup>
 
-**其他 GPU 实现** Vina-GPU 2.1 可在上游支持的 Windows 或 Linux 环境使用 OpenCL，仓库提供自带示例，批量输入输出选项为 `--ligand_directory` 与 `--output_directory`。NVIDIA 环境的构建说明会用到 CUDA Toolkit 路径，其搜索内核用 OpenCL 执行。Scripps 的 AutoDock-GPU 支持 CUDA/OpenCL，使用 AutoDock4 路线和相应的亲和力图。<sup>[9](REFERENCES.zh-CN.md#ref-9),[10](REFERENCES.zh-CN.md#ref-10)</sup> [Vina-GPU 2.1](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1) · [Scripps AutoDock-GPU](https://github.com/forlilab/AutoDock-GPU)
+Scripps AutoDock-GPU 支持 CUDA/OpenCL，采用 AutoDock4 路线和相应的亲和力图。<sup>[10](REFERENCES.zh-CN.md#ref-10)</sup> [Scripps AutoDock-GPU](https://github.com/forlilab/AutoDock-GPU)
 
 ### 候选复筛与 docking pose（对接位姿）记录
 
@@ -287,7 +342,7 @@ tail -25 dock/gpu_batch_202601/unidock.log
 | **A · Meeko 保留映射 | 新项目，或结果仍含 Meeko 写入的 SMILES 与索引。 | Molscrub/RDKit → Meeko PDBQT → 对接 → `mk_export.py` 导出 SDF → RDKit 核对。 |
 | **[B · 旧 ADT + SDF 模板](#legacy-adt-handoff)** | 已有旧 ADT docking pose（对接位姿），并保存了同一化学状态的原始 SDF。 | 选定 PDBQT MODEL → 核对一一映射 → RDKit 回填 heavy atom（重原子）坐标、补氢及核对 → SDF。 |
 
-保留原始 SDF 和所选运行的输出。每套 force field（力场）、姿态和独立重复各用一个目录。以下示例选 AMBER + CPU docking pose（对接位姿）。如选择 CHARMM，把 `ff_family=amber` 改为 `ff_family=charmm`。使用 GPU docking pose（对接位姿）时，从步骤 04B 输出目录查找该配体的 PDBQT，把 `pose_file` 改成查到的实际路径。
+保留原始 SDF 和所选运行的输出。每套 force field（力场）、姿态和独立重复各用一个目录。以下示例选 AMBER + CPU docking pose（对接位姿）。如选择 CHARMM，把 `ff_family=amber` 改为 `ff_family=charmm`。使用 GPU docking pose（对接位姿）时，从步骤 04B 或 04C 的输出目录查找该配体的 PDBQT，把 `pose_file` 改成查到的实际路径。
 
 **环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 

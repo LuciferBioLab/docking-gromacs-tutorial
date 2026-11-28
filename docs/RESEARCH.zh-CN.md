@@ -47,6 +47,14 @@ gmx pdb2gmx -f reviewed_assembly.pdb -o protein.gro -p protein.top -ff amber99sb
 
 分别建两个运行目录。匹配原始化学图、docking pose（对接位姿）坐标、温度、盐目标、模拟时长预算和所分析的观测量；各自采用其 force field（力场）配套参数和切换方式。比较各重复的配体 RMSD、接触、密度分布与不确定度。已实测的是公开 AMBER CPU 短测试。配对的 CGenFF 分支需先取得已核查的 stream 及相应普通截断移植包。
 
+| 比较前记录 | 如何保证可比性 |
+| --- | --- |
+| 起始结构 | 两条分支归档相同的 receptor（受体）模型、配体微观状态、重原子对应关系和 docking pose（对接位姿）。核对参数化带来的坐标差异。 |
+| 参数与运行输入 | 两条分支分别归档 force field（力场）文件、配体参数、水和离子、处理后的 MDP 与展开的 topology（拓扑）。对齐时长和热力学目标，并各自保留配套的非键合与溶剂设置。 |
+| 分析 | 即使 topology（拓扑）中的原子编号不同，也使用对应的重原子与链和残基标识。采用相同蛋白原子组叠合，并统一分析窗口、帧间隔与接触定义。先分别汇总独立重复，再比较分布。 |
+
+比较结果反映两套完整方案的表现。配体电荷模型、水和离子参数及非键合处理都可能贡献差异。
+
 OpenFF Sage 和 OpenFF Interchange 可以将相容的小分子体系导出至 GROMACS。LigParGen 可用于相容的 OPLS-AA 路线。组装前核对函数形式、组合规则、1–4 缩放、电荷和 topology（拓扑）与坐标顺序。<sup>[R4](#research-ref-4),[R5](#research-ref-5)</sup>
 
 <a name="interaction-analysis"></a>

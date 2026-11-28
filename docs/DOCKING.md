@@ -137,13 +137,13 @@ size_z = 20.0
 
 <a name="batch-docking"></a>
 
-## 04. Batch docking on CPU and CUDA
+## 04. Batch docking on CPU and GPU
 
 - **Input** PDBQT, box and manifest
 - **Outputs** scored poses and job logs
 - **If a step fails** inspect failed entries before resuming
 
-The CPU and CUDA workflows use the same receptor PDBQT, ligand PDBQT files, and search box from step 03. Use a separate output directory for each screen. Prepare ligands individually or pass a reviewed multi-record SDF to Meeko with `--multimol_outdir`. Track the mapping between ligand IDs and source SDF records, including duplicate IDs and failed preparations.<sup>[7](REFERENCES.md#ref-7)</sup> [Meeko ligand CLI](https://meeko.readthedocs.io/en/develop/lig_cli_options.html)
+Use the receptor PDBQT, ligand PDBQT files, and search box from step 03 with the selected engine. Use a separate output directory for each screen. Prepare ligands individually or pass a reviewed multi-record SDF to Meeko with `--multimol_outdir`. Track the mapping between ligand IDs and source SDF records, including duplicate IDs and failed preparations.<sup>[7](REFERENCES.md#ref-7)</sup> [Meeko ligand CLI](https://meeko.readthedocs.io/en/develop/lig_cli_options.html)
 
 ### A. CPU · AutoDock Vina
 
@@ -224,11 +224,16 @@ Run from the Linux or WSL2 project root. Verify a single ligand with `--gpu_batc
 **Environment:** `dockgpu`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-conda activate dockgpu
-mkdir dock/gpu_single_202601
-unidock --receptor dock/receptor.pdbqt --gpu_batch ligands/pdbqt/state001.pdbqt  --config dock/box.txt --scoring vina --search_mode balance  --num_modes 20 --seed 202601 --dir dock/gpu_single_202601  > dock/gpu_single_202601/unidock.log 2>&1
-tail -25 dock/gpu_single_202601/unidock.log
-find dock/gpu_single_202601 -maxdepth 1 -type f -name '*.pdbqt' -print
+conda activate dockgpu && (
+  set -euo pipefail
+  job=dock/gpu_single_202601
+  mkdir "$job"
+  unidock --receptor dock/receptor.pdbqt --gpu_batch ligands/pdbqt/state001.pdbqt \
+    --config dock/box.txt --scoring vina --search_mode balance --num_modes 20 \
+    --seed 202601 --dir "$job" > "$job/unidock.log" 2>&1
+  tail -25 "$job/unidock.log"
+  find "$job" -maxdepth 1 -type f -name '*.pdbqt' -print
+)
 ```
 
 Pass a manifest to `--ligand_index` with one relative path per line and unique filenames without spaces. Measure device memory use, throughput, and output completeness on a representative subset before scaling.
@@ -236,9 +241,12 @@ Pass a manifest to `--ligand_index` with one relative path per line and unique f
 **Environment:** `Bash`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-mkdir dock/gpu_batch_202601
-find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | LC_ALL=C sort  > dock/gpu_batch_202601/ligands.txt
-test -s dock/gpu_batch_202601/ligands.txt
+(
+  set -euo pipefail
+  mkdir dock/gpu_batch_202601
+  find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | LC_ALL=C sort > dock/gpu_batch_202601/ligands.txt
+  test -s dock/gpu_batch_202601/ligands.txt
+)
 ```
 
 Run after confirming the manifest is nonempty. If VRAM is limited, split it with `split -l 32 dock/gpu_batch_202601/ligands.txt dock/gpu_chunk_`. Give every run its own manifest path, log, and output directory.
@@ -246,19 +254,66 @@ Run after confirming the manifest is nonempty. If VRAM is limited, split it with
 **Environment:** `dockgpu`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-time unidock --receptor dock/receptor.pdbqt  --ligand_index dock/gpu_batch_202601/ligands.txt  --config dock/box.txt --scoring vina --search_mode balance  --num_modes 20 --seed 202601 --dir dock/gpu_batch_202601  > dock/gpu_batch_202601/unidock.log 2>&1
-wc -l dock/gpu_batch_202601/ligands.txt
-find dock/gpu_batch_202601 -maxdepth 1 -type f -name '*.pdbqt' | wc -l
-tail -25 dock/gpu_batch_202601/unidock.log
+(
+  set -euo pipefail
+  set -o noclobber
+  job=dock/gpu_batch_202601
+  test -s "$job/ligands.txt"
+  time unidock --receptor dock/receptor.pdbqt --ligand_index "$job/ligands.txt" \
+    --config dock/box.txt --scoring vina --search_mode balance --num_modes 20 \
+    --seed 202601 --dir "$job" > "$job/unidock.log" 2>&1
+  wc -l "$job/ligands.txt"
+  find "$job" -maxdepth 1 -type f -name '*.pdbqt' | wc -l
+  tail -25 "$job/unidock.log"
+)
 ```
 
 `fast`, `balance`, and `detail` control Uni-Dock's search effort. For follow-up docking, change the seed or search effort and use a new output directory. Verify that files contain poses and scores. Reconcile outputs against manifest IDs, inspect logs for CUDA or parsing errors, and record incomplete jobs. [Uni-Dock modes and batch manifest](https://github.com/dptech-corp/Uni-Dock/blob/main/unidock/README.md)
 
+The upstream 1.2.0 release accommodates its default 30 × 30 × 30 Å box at 0.375 Å spacing. A box that exceeds the grid buffer is rejected by this release. For a broad search, record the bounds of each overlapping sub-box and use the CPU route if the full box is needed. Splitting the ligand manifest reduces batch size and leaves the per-box grid unchanged. [Uni-Dock 1.2.0 change log](https://github.com/dptech-corp/Uni-Dock/blob/main/CHANGELOG.md#120---2026-06-11)
+
+<a name="vina-gpu-opencl"></a>
+
+### C. Optional GPU route · AutoDock-Vina-GPU 2.1 (OpenCL)
+
+Follow the upstream build instructions for the AutoDock-Vina-GPU 2.1 variant and record its source commit. In Linux Bash, set `VINA_GPU_METHOD_DIR` to the built method directory. Use `clinfo -l`, if installed, to identify the expected GPU under an OpenCL platform. For a build using precompiled kernels, make sure the device-specific kernel files are in the directory given by `opencl_binary_path`. Follow the upstream Windows build instructions for a native Windows installation.<sup>[9](REFERENCES.md#ref-9)</sup> [Vina-GPU 2.1 upstream](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1)
+
+Run this example from the project root after step 03. It stages one reviewed ligand in a dedicated input directory. Each output directory is new. The six search-box values come from `dock/box.txt`. The option `thread` is the number of GPU search lanes. The command writes `vinagpu.txt`, `vinagpu.log`, and the pose in `poses/`. Budget runtime from a sample run on the target GPU.
+
+```bash
+(
+  set -euo pipefail
+  method=$(cd -- "${VINA_GPU_METHOD_DIR:?Set the built Vina-GPU method directory}" && pwd)
+  test -x "$method/AutoDock-Vina-GPU-2-1"
+  test -s dock/receptor.pdbqt
+  test -s dock/box.txt
+  test -s ligands/pdbqt/state001.pdbqt
+  job="$PWD/dock/vinagpu_single_202601"
+  mkdir "$job"
+  mkdir "$job/ligands"
+  cp ligands/pdbqt/state001.pdbqt "$job/ligands/"
+  {
+    printf '%s\n' "receptor = $PWD/dock/receptor.pdbqt" \
+      "ligand_directory = $job/ligands" "output_directory = $job/poses" \
+      "opencl_binary_path = $method" 'thread = 8000' 'seed = 202601'
+    grep -E '^[[:space:]]*(center|size)_[xyz][[:space:]]*=' dock/box.txt
+  } > "$job/vinagpu.txt"
+  (
+    cd "$method"
+    ./AutoDock-Vina-GPU-2-1 --config "$job/vinagpu.txt"
+  ) > "$job/vinagpu.log" 2>&1
+  test -s "$job/poses/state001_out.pdbqt"
+  grep -E '^MODEL|^REMARK VINA RESULT' "$job/poses/state001_out.pdbqt"
+)
+```
+
+For a batch, stage only reviewed PDBQT files with unique basenames in the input directory and reconcile each expected output with the log. Record the device, engine variant, lane count and seed. Apply the chemical and coordinate checks in [step 05](#pose-handoff) before MD. This route has been checked against the upstream source and remains untested on a GPU in this repository.
+
 ### Benchmarking the docking engines
 
-Use identical receptor, search box, and ligand inputs. Document engine versions, scoring functions, search settings, seeds, device, thread count, elapsed wall time, successful ligand count, and peak VRAM where applicable. Report throughput as successful ligands per unit of wall time. Compare native-pose recovery, key contacts, ranking, and repeatability across seeds. Retain separate score tables for the two engines.<sup>[8](REFERENCES.md#ref-8)</sup>
+Use identical receptor, search box, and ligand inputs. Document engine versions, scoring functions, search settings, seeds, device, thread count, elapsed wall time, successful ligand count, and peak VRAM where applicable. Report throughput as successful ligands per unit of wall time. Compare native-pose recovery, key contacts, ranking, and repeatability across seeds. Retain a separate score table for each engine.<sup>[8](REFERENCES.md#ref-8)</sup>
 
-**Other GPU engines.** Vina-GPU 2.1 provides OpenCL docking on the upstream-supported Windows or Linux setups. Its repository includes a sample and documents `--ligand_directory` and `--output_directory` for batch runs. Its NVIDIA build instructions reference CUDA Toolkit paths, while its search kernels use OpenCL. Scripps AutoDock-GPU supports CUDA/OpenCL and uses the AutoDock4 protocol with affinity maps.<sup>[9](REFERENCES.md#ref-9),[10](REFERENCES.md#ref-10)</sup> [Vina-GPU 2.1](https://github.com/DeltaGroupNJUPT/Vina-GPU-2.1) · [Scripps AutoDock-GPU](https://github.com/forlilab/AutoDock-GPU)
+Scripps AutoDock-GPU supports CUDA/OpenCL and follows the AutoDock4 workflow with affinity maps.<sup>[10](REFERENCES.md#ref-10)</sup> [Scripps AutoDock-GPU](https://github.com/forlilab/AutoDock-GPU)
 
 ### Follow-up docking and pose selection
 
@@ -287,7 +342,7 @@ Both workflows produce `lig_pose.sdf`. The source SDF defines the molecular grap
 | **A · Meeko-preserved mapping** | New jobs, or outputs retaining Meeko's SMILES and atom indices. | Prepare and check the state, dock mapped PDBQT, export SDF with `mk_export.py`, then verify with RDKit. |
 | **[B · Legacy ADT with SDF template](#legacy-adt-handoff)** | A legacy ADT pose and the original SDF for the same chemical state are available. | Select the PDBQT MODEL, verify the atom map, then use RDKit to transfer coordinates, add hydrogens, check the pose and write SDF. |
 
-Archive the original ligand SDF and docking output in separate work directories for each force field, pose, and replicate. The example uses `ff_family=amber` and a pose from the CPU run. Set `ff_family=charmm` for CHARMM, or set `pose_file` to the selected PDBQT from step 04B for a CUDA-generated pose.
+Archive the original ligand SDF and docking output in separate work directories for each force field, pose, and replicate. The example uses `ff_family=amber` and a pose from the CPU run. Set `ff_family=charmm` for CHARMM, or set `pose_file` to the selected PDBQT from step 04B or 04C for a GPU-generated pose.
 
 **Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 

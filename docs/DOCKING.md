@@ -2,7 +2,7 @@
 
 **English** · [简体中文](DOCKING.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -93,7 +93,7 @@ obabel ligands/candidates.sdf -f 1 -l 1 -O ligands/state001.sdf
 
 **Review the candidate with RDKit.** From the `docktools` environment, load the selected SDF in Python and verify stereochemistry, integer net charge, explicit hydrogen count, and the 3D conformer flag. Resolve any parsing or chemical-identity discrepancy before calling Meeko. [RDKit Python guide](https://www.rdkit.org/docs/GettingStartedInPython.html)
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 python
@@ -119,6 +119,8 @@ sha256sum input/* > qc/input_sha256.txt
 ```
 
 Write the six fields to `dock/box.txt` and substitute the actual center and edge lengths. Convert legacy AutoGrid interval counts to Å using the grid spacing. If the binding site is unknown, use a separate exploratory box and evaluate sampling and pocket plausibility.
+
+The numbers below are the public 1IEP box in Å. For a different receptor, review and replace all six values.
 
 ```ini
 center_x = 15.190
@@ -151,21 +153,23 @@ Run a single curated ligand and inspect its output and log before launching the 
 
 **Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
+If Vina exits with an error, inspect the log and use a new output directory for a retry.
+
 ```bash
-conda activate docktools
-mkdir dock/cpu_single_202601
-vina --receptor dock/receptor.pdbqt --ligand ligands/pdbqt/state001.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --out dock/cpu_single_202601/state001_out.pdbqt  > dock/cpu_single_202601/vina.log 2>&1
-tail -20 dock/cpu_single_202601/vina.log
-grep -E '^MODEL|^REMARK VINA RESULT' dock/cpu_single_202601/state001_out.pdbqt
+conda activate docktools &&
+mkdir dock/cpu_single_202601 &&
+  vina --receptor dock/receptor.pdbqt --ligand ligands/pdbqt/state001.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --out dock/cpu_single_202601/state001_out.pdbqt  > dock/cpu_single_202601/vina.log 2>&1 &&
+  tail -20 dock/cpu_single_202601/vina.log &&
+  grep -E '^MODEL|^REMARK VINA RESULT' dock/cpu_single_202601/state001_out.pdbqt
 ```
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-mkdir dock/cpu_batch_202601
-time vina --receptor dock/receptor.pdbqt --batch ligands/pdbqt/*.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --dir dock/cpu_batch_202601  > dock/cpu_batch_202601/vina.log 2>&1
-find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | wc -l
-find dock/cpu_batch_202601 -maxdepth 1 -type f -name '*.pdbqt' | wc -l
+mkdir dock/cpu_batch_202601 &&
+  time vina --receptor dock/receptor.pdbqt --batch ligands/pdbqt/*.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --dir dock/cpu_batch_202601  > dock/cpu_batch_202601/vina.log 2>&1 &&
+  find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | wc -l &&
+  find dock/cpu_batch_202601 -maxdepth 1 -type f -name '*.pdbqt' | wc -l
 ```
 
 `--batch` processes ligands sequentially against one receptor. `--cpu 4` sets the thread count for a Vina process. Split large libraries into separate jobs to parallelize within your CPU allocation. Use a separately defined box for each receptor. [Vina native batch mode](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
@@ -186,14 +190,16 @@ mkdir "$win_job" &&
   cp ligands/pdbqt/*.pdbqt "$win_job/ligands/pdbqt/"
 ```
 
-Enter the exchange directory in Windows PowerShell. The example expects the upstream executable there as `vina.exe`. Set `$Vina` to its full path if it is installed elsewhere. [Official Windows batch instructions](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
+Enter the exchange directory in Windows PowerShell. The example expects the upstream executable there as `vina.exe`. Set `$Vina` to its full path if it is installed elsewhere. Run the following block in the same PowerShell session used for this Windows batch. [Official Windows batch instructions](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
 
 **Environment:** `PowerShell`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```powershell
-Set-Location (Join-Path $env:USERPROFILE 'MD_exchange\target01')
+Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'MD_exchange\target01') -ErrorAction Stop
 $Vina = '.\vina.exe'
+if (!(Test-Path -LiteralPath $Vina -PathType Leaf)) { throw 'Set $Vina to the Vina executable path.' }
 & $Vina --version
+if ($LASTEXITCODE -ne 0) { throw 'Vina version check failed.' }
 $Ligands = @(Get-ChildItem '.\ligands\pdbqt' -Filter '*.pdbqt' -File |
     Sort-Object Name | Select-Object -ExpandProperty FullName)
 if ($Ligands.Count -eq 0) { throw 'No ligand PDBQT files found' }
@@ -342,22 +348,24 @@ Both workflows produce `lig_pose.sdf`. The source SDF defines the molecular grap
 | **A · Meeko-preserved mapping** | New jobs, or outputs retaining Meeko's SMILES and atom indices. | Prepare and check the state, dock mapped PDBQT, export SDF with `mk_export.py`, then verify with RDKit. |
 | **[B · Legacy ADT with SDF template](#legacy-adt-handoff)** | A legacy ADT pose and the original SDF for the same chemical state are available. | Select the PDBQT MODEL, verify the atom map, then use RDKit to transfer coordinates, add hydrogens, check the pose and write SDF. |
 
-Archive the original ligand SDF and docking output in separate work directories for each force field, pose, and replicate. The example uses `ff_family=amber` and a pose from the CPU run. Set `ff_family=charmm` for CHARMM, or set `pose_file` to the selected PDBQT from step 04B or 04C for a GPU-generated pose.
+Archive the original ligand SDF and docking output in separate work directories for each force field, pose, and replicate. The example uses `ff_family=amber` and a pose from the CPU run. For existing data, set `protein_file`, `source_sdf`, and `pose_file` to the matching files. For Windows or GPU output, use the exact PDBQT path returned by step 04. Set `ff_family=charmm` for CHARMM. The staging block enters a new replicate directory only after the copies succeed.
 
 **Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 conda activate docktools
 ff_family=amber
+protein_file=input/protein.pdb
+source_sdf=ligands/state001.sdf
 pose_file=dock/cpu_single_202601/state001_out.pdbqt
 run_dir="md/${ff_family}_state001_pose01_rep01"
 
-test -s "$pose_file" &&
-  mkdir "$run_dir" &&
-  cp input/protein.pdb "$run_dir/protein.pdb" &&
-  cp ligands/state001.sdf "$run_dir/state_original.sdf" &&
-  cp "$pose_file" "$run_dir/selected_run.pdbqt" &&
-cd "$run_dir"
+test -s "$protein_file" && test -s "$source_sdf" && test -s "$pose_file" &&
+  mkdir -p -- "$(dirname -- "$run_dir")" && mkdir -- "$run_dir" &&
+  cp -- "$protein_file" "$run_dir/protein.pdb" &&
+  cp -- "$source_sdf" "$run_dir/state_original.sdf" &&
+  cp -- "$pose_file" "$run_dir/selected_run.pdbqt" &&
+  cd -- "$run_dir"
 ```
 
 ### A. Pose recovery from Meeko metadata
@@ -375,7 +383,7 @@ grep -m 1 '^REMARK H PARENT ' selected_run.pdbqt || true
 
 Export once the mapping checks pass. For legacy ADT output without Meeko metadata, follow route B. For any new docking run, record its engine, search settings, and pose-selection rationale separately.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `docked_poses.sdf`. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docktools`. **Expected files or evidence:** `docked_poses.sdf`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 mk_export.py selected_run.pdbqt -s docked_poses.sdf
@@ -417,7 +425,7 @@ obabel docked_poses.sdf -ocan
 
 Before extracting a pose, verify its provenance and score. If it came from a PDBQT export, confirm the correspondence between its SDF record and PDBQT `MODEL`. The example selects record 1.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 obabel docked_poses.sdf -f 1 -l 1 -O lig_pose.sdf

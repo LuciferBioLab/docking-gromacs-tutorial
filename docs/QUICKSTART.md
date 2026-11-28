@@ -2,19 +2,35 @@
 
 **English** · [简体中文](QUICKSTART.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
+
+Use Bash on Linux or in a WSL2 Linux distribution. Run repository commands from a local checkout containing `Makefile` and `examples/`. On Windows, use PowerShell for `wsl -l -v`, then open the Linux distribution and keep the working directory on its Linux filesystem. [Linux and WSL2 setup](ENVIRONMENT.md#setup)
+
+If you need a checkout, use the following commands with Git and GNU Make available in your Linux shell.
+
+```bash
+git clone https://github.com/LuciferBioLab/docking-gromacs-tutorial.git
+cd docking-gromacs-tutorial
+```
+
+| What you have | Start here |
+| --- | --- |
+| A receptor and ligand, or no prepared files yet | [Dock only](#dock) |
+| A reviewed docked pose or a prepared MD system | [Run MD from an existing pose](#existing-pose) |
+| A trajectory, or precomputed series and structures | [Analyze or make figures](#existing-trajectory) |
 
 <a name="dock"></a>
 
 ## Dock and check a public co-crystal
 
-Start in the repository root in Linux or WSL2. The three commands after activation are run-time steps. The first environment solve and download are separate.
+Install once, then run the public 1IEP CPU example. The split `docktools` environment below installs the pinned docking tools for steps 01–05. If you already have the complete `docking-gromacs` environment, activate it and run the three commands after activation.
 
 ```bash
-conda env create -f environment.yml
-conda activate docking-gromacs
+conda create -n docktools --override-channels -c conda-forge python=3.11 vina=1.2.7 \
+  meeko=0.8.0 rdkit=2026.03.1 gemmi=0.7.5 openbabel=3.2.1
+conda activate docktools
 make fixtures
 make dock RUN=runs/1iep-dock THREADS=4
 bash scripts/check_05.sh runs/1iep-dock
@@ -22,7 +38,7 @@ bash scripts/check_05.sh runs/1iep-dock
 
 `RUN` chooses a new isolated directory. `THREADS` is the requested per-job CPU thread allocation. The docking profile uses Vina `--exhaustiveness 8` for a short reference search, `--num_modes 5` to cap output, and `--seed 202601` by default to record the sampling seed. Vina may emit fewer than five modes. For a sensitivity check, compare exhaustiveness 8, 16, and 32 and several recorded seeds with all other inputs fixed.
 
-Expected files include `dock/docked.pdbqt`, `dock/lig_pose.sdf`, `dock/redocking.csv`, and `logs/vina.log`. The pinned 1IEP ligand is **+1**, which the chemistry checks enforce. The result below was observed with Vina 1.2.7, Meeko 0.8.0, Open Babel 3.2.1, four allocated CPU threads and seed 202601.
+In `runs/1iep-dock/`, expected files include `dock/docked.pdbqt`, `dock/lig_pose.sdf`, `dock/redocking.csv`, and `logs/vina.log`. The pinned 1IEP ligand is **+1**, which the chemistry checks enforce. The result below was observed with Vina 1.2.7, Meeko 0.8.0, Open Babel 3.2.1, four allocated CPU threads and seed 202601.
 
 ```text
 PASS stage 04
@@ -35,11 +51,54 @@ The top Vina score was −13.270 kcal/mol. This is a docking score. RMSD compare
 
 [Input provenance](../examples/1iep/PROVENANCE.md) · [Three crystal references](../examples/regression/PROVENANCE.md) · [Regression RMSD script](../scripts/redocking_rmsd.py)
 
+For your own inputs, follow [receptor and ligand preparation](DOCKING.md#local-inputs) and the [CPU, CUDA or OpenCL docking steps](DOCKING.md#batch-docking). Use a search box defined for the receptor in Å. Keep the source SDF and raw PDBQT together with the log and selected pose record. If the fixture fails, start with the first error under `runs/1iep-dock/logs/` and the [docking error index](TROUBLESHOOTING.md#docking-errors).
+
+<a name="existing-pose"></a>
+
+## Run MD from an existing docking pose
+
+Use Linux or WSL2 Bash. From a repository checkout, create or activate the full CPU environment if you need AmberTools, ACPYPE, RDKit and GROMACS together. If you use the [separate environments](ENVIRONMENT.md#setup), follow the activation commands for each stage.
+
+Bring the reviewed MD-ready protein PDB and a single-record pose SDF with verified bond orders, stereochemistry, integer charge and docked heavy-atom coordinates in the **same receptor frame**. For a PDBQT-only pose, first recover the SDF using [step 05](DOCKING.md#pose-handoff). Preserve the source ligand chemistry and atom map. Use a separate directory for each force field, pose and replicate. Replace the illustrative source paths below before running.
+
+```bash
+conda env create -f environment.yml
+conda activate docking-gromacs
+```
+
+```bash
+protein='/path/to/reviewed_protein.pdb'
+pose='/path/to/verified_pose.sdf'
+run='runs/study01/amber_pose01_rep01'
+
+test -s "$protein" && test -s "$pose" &&
+  mkdir -p -- "$(dirname -- "$run")" && mkdir -- "$run" &&
+  cp -- "$protein" "$run/protein.pdb" &&
+  cp -- "$pose" "$run/lig_pose.sdf" &&
+  cd -- "$run"
+```
+
+| Entry | Handoff |
+| --- | --- |
+| Reviewed pose SDF + protein PDB | [Parameterize](SYSTEM_SETUP.md#topology) with AMBER or CHARMM. Keep the net ligand charge in units of e and verify Å-to-nm conversions. [Assemble](SYSTEM_SETUP.md#complex-assembly) to obtain `complex_raw.gro` and `topol.top` plus its includes. |
+| Matching assembled system and topology | Start at the applicable commands in [system preparation and equilibration](SIMULATION.md#equilibration) using the [stage MDPs](SYSTEM_SETUP.md#simulation). The box setup starts from an unsolvated `complex_raw.gro`. An already solvated or equilibrated system enters at its reviewed stage, using its own matching topology, coordinates, groups and checkpoint. |
+| Reviewed NPT or pilot endpoint | Use the same-stage GRO and CPT in [production preparation](SIMULATION.md#production). Verify the compiled TPR and topology, then follow the [server handoff](SIMULATION.md#server-handoff). |
+
+If preprocessing fails, read the first `grompp` error. Check charge, atom order, topology includes and restraint references in [parameterization and topology troubleshooting](TROUBLESHOOTING.md#topology-errors). Review [complex systems](TROUBLESHOOTING.md#complex-systems) before using this soluble-system example for a multichain pocket, nonstandard residue, metal, cofactor, or membrane assembly.
+
+<a name="existing-trajectory"></a>
+
+## Analyze an existing trajectory or make figures
+
+Prepare a fresh analysis directory with a full-system XTC and its matching TPR, plus an index for that atom order. Step 11 uses the local names `md.xtc`, `md.tpr` and `index.ndx`. Use the existing GROMACS environment for calculations. If installing just for this route, install GROMACS 2026.3 from [the CPU setup](ENVIRONMENT.md#setup). Review the [input and index checks](ANALYSIS.md#analysis) before imaging or calculating ligand RMSD. A stripped trajectory needs a reference and groups for that exact subset and order. For precomputed XVG or a matching structure file, go directly to the [Python plotting](ANALYSIS.md#python-figures) or [PyMOL structure rendering](ANALYSIS.md#pymol-image-export).
+
+The [published 1IEP v0.1.0 archive](https://github.com/LuciferBioLab/docking-gromacs-tutorial/releases/tag/v0.1.0) is suitable for plotting the included ligand RMSD and viewing `analysis/complex.pdb`. It contains the smoke XTC but omits the TPR and index required for the complete trajectory analysis. Keep the reported time and distance units when plotting archived XVG values.
+
 <a name="quickstart-md"></a>
 
-## Run the MD teaching path
+## Run the public 1IEP MD teaching example
 
-Use the same environment and repository root. These commands create new directories, so review the destination and pick a new name for each rerun.
+Use the complete `docking-gromacs` environment from above and return to the repository root first. The smoke and 1 ns commands create new directories. Choose a new name for each run.
 
 ```bash
 bash scripts/run_example.sh --dry-run smoke runs/1iep-smoke

@@ -5,8 +5,8 @@
   },
   "blocks": [
     {
-      "en": "# Equilibration and production\n\n**English** · [简体中文](SIMULATION.zh-CN.md)\n\n[Repository home](../README.md#contents)\n\n<a name=\"equilibration\"></a>\n\n## 09. System setup, energy minimization, and equilibration\n\n- **Input** Box-ready complex and MDPs\n- **Outputs** solvated minimized equilibrated system\n- **If a step fails** inspect first grompp or dynamics failure\n\n### Box, solvent, and ions\n\nUse the box command for your force-field route. The examples set an initial solute-to-box boundary distance of 1.2 nm for AMBER and 1.4 nm for CHARMM. Verify solute–image separation for the chosen periodic box and cutoff.\n\n**Environment:** `docking-gromacs`. **Expected files or evidence:** `boxed.gro`. For planning, use the per-stage budget in the quickstart.",
-      "zh": "# 平衡与生产模拟\n\n[English](SIMULATION.md) · **简体中文**\n\n[仓库首页](../README.zh-CN.md#contents)\n\n<a name=\"equilibration\"></a>\n\n## 09. 建系、能量最小化与平衡\n\n- **输入** 待建盒复合物与 MDP\n- **输出** 输出已溶剂化、最小化及平衡体系\n- **失败时的操作** 定位首条预处理或动力学错误\n\n### 建盒、溶剂化和离子\n\n按所选路线先执行一个建盒命令。以下示例使用 AMBER 1.2 nm 或 CHARMM 1.4 nm 的初始溶质到盒边距。按实际盒形、截断和溶质尺寸验证周期映像间距。\n\n**环境：** `docking-gromacs`。**预期文件或核查依据：** `boxed.gro`。耗时和磁盘规划见快速入门的分阶段表。"
+      "en": "# Equilibration and production\n\n**English** · [简体中文](SIMULATION.zh-CN.md)\n\n[Repository home](../README.md#contents)\n\n<a name=\"equilibration\"></a>\n\n## 09. System setup, energy minimization, and equilibration\n\n- **Input** Box-ready complex and MDPs\n- **Outputs** solvated minimized equilibrated system\n- **If a step fails** inspect first grompp or dynamics failure\n\nRun from the prepared replicate directory with GROMACS 2026.3 on `PATH`. Check that `complex_raw.gro`, `topol.top`, its local includes, and the stage MDPs are present before boxing. An already solvated system starts from its matching coordinate and topology files at the appropriate later stage.\n\n### Box, solvent, and ions\n\nUse the box command for your force-field route. The examples set an initial solute-to-box boundary distance of 1.2 nm for AMBER and 1.4 nm for CHARMM. Verify solute–image separation for the chosen periodic box and cutoff.\n\n**Environment:** `docking-gromacs`. **Expected files or evidence:** `boxed.gro`. For planning, use the per-stage budget in the quickstart.",
+      "zh": "# 平衡与生产模拟\n\n[English](SIMULATION.md) · **简体中文**\n\n[仓库首页](../README.zh-CN.md#contents)\n\n<a name=\"equilibration\"></a>\n\n## 09. 建系、能量最小化与平衡\n\n- **输入** 待建盒复合物与 MDP\n- **输出** 输出已溶剂化、最小化及平衡体系\n- **失败时的操作** 定位首条预处理或动力学错误\n\n在已准备好的重复目录执行，确认 `PATH` 上的 GROMACS 版本为 2026.3。加盒前检查 `complex_raw.gro`、`topol.top`、本地 include 文件和各阶段 MDP 是否齐全。已有溶剂化体系时，使用匹配的坐标和拓扑文件，从后续对应阶段开始。\n\n### 建盒、溶剂化和离子\n\n按所选路线先执行一个建盒命令。以下示例使用 AMBER 1.2 nm 或 CHARMM 1.4 nm 的初始溶质到盒边距。按实际盒形、截断和溶质尺寸验证周期映像间距。\n\n**环境：** `docking-gromacs`。**预期文件或核查依据：** `boxed.gro`。耗时和磁盘规划见快速入门的分阶段表。"
     },
     {
       "shared": "```bash\n# AMBER\ngmx editconf -f complex_raw.gro -o boxed.gro -c -d 1.2 -bt dodecahedron\n```"
@@ -72,7 +72,7 @@
       "zh": "分别按文件选择 **Density**、**Volume** 和 **Pressure**。确认温度、密度和体积没有持续漂移，检查压力时间平均与合理波动。瞬时压力可有较大波动。检查日志与结构后，再进入无位置限制试跑。\n\n<a name=\"production\"></a>\n\n## 10. 短试跑、生产与续跑\n\n- **输入** 经核验的平衡结构与检查点\n- **输出** 输出生产轨迹和检查点\n- **失败时的操作** 续跑前核对检查点和输出一致性\n\n以下 20 ps 短试跑和 1 ns pilot 可用于验证解除位置限制后的数值稳定性及性能。对于已经有等效验收记录的体系，可从合格末态进入生产准备。检查展开 topology（拓扑）中的 `[ position_restraints ]`，并核查 LINCS、SETTLE 与非有限能量等异常。 [平衡与轨迹](TROUBLESHOOTING.zh-CN.md#simulation-errors)\n\n**环境：** `docking-gromacs`。**预期文件或核查依据：** `topol.top`, `smoke.tpr`, `smoke_processed.top`。耗时和磁盘规划见快速入门的分阶段表。"
     },
     {
-      "shared": "```bash\ngmx grompp -f smoke.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx  -o smoke.tpr -pp smoke_processed.top -po smoke_out.mdp\ngrep -n 'position_restraints' smoke_processed.top\n```"
+      "shared": "```bash\ngmx grompp -f smoke.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx  -o smoke.tpr -pp smoke_processed.top -po smoke_out.mdp\nif grep -n -E '^[[:space:]]*\\[[[:space:]]*position_restraints[[:space:]]*\\]' smoke_processed.top; then\n  echo 'Review active position restraints before running this TPR.' >&2\nfi\n```"
     },
     {
       "en": "**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. Runtime and output size depend on system size and simulated duration.",
@@ -82,18 +82,18 @@
       "shared": "```bash\ngmx mdrun -v -deffnm smoke \"${md_backend[@]}\"\n```"
     },
     {
-      "en": "**Environment:** `docking-gromacs`. **Expected files or evidence:** `topol.top`, `pilot.tpr`, `pilot_processed.top`. Runtime and output size depend on system size and simulated duration.",
-      "zh": "**环境：** `docking-gromacs`。**预期文件或核查依据：** `topol.top`, `pilot.tpr`, `pilot_processed.top`。耗时和磁盘占用取决于体系大小与模拟时长。"
+      "en": "To run the pilot directly from accepted NPT, set `PILOT_START=npt` in the block below. Use `smoke` only when the optional smoke run finished and its GRO and CPT passed review. Keep `pilot.mdp` unrestrained as described in [step 08](SYSTEM_SETUP.md#simulation).\n\n**Environment:** `docking-gromacs`. **Expected files or evidence:** `topol.top`, `pilot.tpr`, `pilot_processed.top`. Runtime and output size depend on system size and simulated duration.",
+      "zh": "若从已验收的 NPT 直接进入 Pilot，将下方的 `PILOT_START` 改为 `npt`。仅在可选短测完成且 GRO 和 CPT 已核查时使用 `smoke`。按[步骤 08](SYSTEM_SETUP.zh-CN.md#simulation)设置无位置限制的 `pilot.mdp`。\n\n**环境：** `docking-gromacs`。**预期文件或核查依据：** `topol.top`, `pilot.tpr`, `pilot_processed.top`。耗时和磁盘占用取决于体系大小与模拟时长。"
     },
     {
-      "shared": "```bash\ngmx grompp -f pilot.mdp -c smoke.gro -t smoke.cpt -p topol.top -n index.ndx  -o pilot.tpr -pp pilot_processed.top -po pilot_out.mdp\ngmx mdrun -v -deffnm pilot \"${md_backend[@]}\"\ngmx check -f pilot.xtc\ngrep -A2 'Performance:' pilot.log\n```"
+      "shared": "```bash\n(\n  set -e\n  PILOT_START=smoke\n  test -s \"$PILOT_START.gro\" && test -s \"$PILOT_START.cpt\" || exit 1\n  gmx grompp -f pilot.mdp -c \"$PILOT_START.gro\" -t \"$PILOT_START.cpt\" -p topol.top -n index.ndx  -o pilot.tpr -pp pilot_processed.top -po pilot_out.mdp\n  gmx mdrun -v -deffnm pilot \"${md_backend[@]}\"\n  gmx check -f pilot.xtc\n  grep -A2 'Performance:' pilot.log\n)\n```"
     },
     {
       "en": "Compile the production TPR from the selected validated endpoint. The example uses `pilot`. Set it to `npt` for a protocol that starts from an accepted NPT endpoint, and keep the GRO and checkpoint from the same stage. Check the processed MDP, expanded topology, and compiled TPR, and document the choice of starting state.\n\n**Environment:** `docking-gromacs`. **Expected files or evidence:** `topol.top`, `md.tpr`, `md_processed.top`. For planning, use the per-stage budget in the quickstart.",
       "zh": "从选定的合格末态生成生产 TPR。示例用 `pilot`；若研究方案从通过验收的 NPT 末态开始，将其改为 `npt`，始终使用同一阶段配套的 GRO 和 CPT。核对处理后的 MDP、展开 topology（拓扑）与实际 TPR，并记录起点选择理由。\n\n**环境：** `docking-gromacs`。**预期文件或核查依据：** `topol.top`, `md.tpr`, `md_processed.top`。耗时和磁盘规划见快速入门的分阶段表。"
     },
     {
-      "shared": "```bash\nSTART=pilot\ngmx grompp -f md.mdp -c \"$START.gro\" -t \"$START.cpt\" -p topol.top -n index.ndx  -o md.tpr -pp md_processed.top -po md_out.mdp\ngrep -n 'position_restraints' md_processed.top\ngrep -Ei '^[[:space:]]*(dt|nsteps|nstxout-compressed|compressed-x-grps)[[:space:]]*=' md_out.mdp\n```"
+      "shared": "```bash\nSTART=pilot\ngmx grompp -f md.mdp -c \"$START.gro\" -t \"$START.cpt\" -p topol.top -n index.ndx  -o md.tpr -pp md_processed.top -po md_out.mdp\nif grep -n -E '^[[:space:]]*\\[[[:space:]]*position_restraints[[:space:]]*\\]' md_processed.top; then\n  echo 'Review active position restraints before running this TPR.' >&2\nfi\ngrep -Ei '^[[:space:]]*(dt|nsteps|nstxout-compressed|compressed-x-grps)[[:space:]]*=' md_out.mdp\n```"
     },
     {
       "en": "<a name=\"server-handoff\"></a>\n\n### Server handoff and production verification\n\n**Before submission.** Archive `md.tpr`, the processed MDP, starting GRO and CPT, `index.ndx`, the top-level topology, and all includes and force-field dependencies. Include software versions, starting-state provenance, and equilibration records. Verify the package on the target server against its checksum manifest, and reconcile the compiled TPR with the processed MDP and topology.\n\nRun the read-only checks in the job directory on the target. If the bundle includes `SHA256SUMS`, verify it first.\n\n**Environment:** `docking-gromacs`. **Expected files or evidence:** `md.tpr`. For planning, use the per-stage budget in the quickstart.",
@@ -128,6 +128,6 @@
       "zh": "按日志和轨迹末帧核对达到预期步数与时间，再进入分析。若多次延长，从最近一次使用的 TPR 继续延长，并保留各次 TPR 和日志。\n\n### 独立重复\n\n独立重复在不同目录使用不同的 NVT `gen-seed`，例如 202601、202602、202603，分别完成 NVT、NPT 和后续模拟。根据研究问题决定是否使用不同起始姿态或对照。 [MD reliability and reproducibility checklist](https://www.nature.com/articles/s42003-023-04653-0)\n\n[返回目录](../README.zh-CN.md#contents)"
     }
   ],
-  "paired_on": "2026-11-28",
+  "paired_on": "2026-11-29",
   "setup_verified_at": "https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914"
 }

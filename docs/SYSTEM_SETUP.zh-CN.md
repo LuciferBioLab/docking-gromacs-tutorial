@@ -2,7 +2,7 @@
 
 [English](SYSTEM_SETUP.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -21,14 +21,15 @@
 
 常规可溶蛋白和结构明确的有机配体可采用 A。实验室已有 CHARMM 体系、需与既有 CHARMM 模型对照，或采用 CHARMM36m 的理由明确且可获得质量合格的配体参数时，可用 B。两套 force field（力场）比较时固定化学状态和起始 docking pose（对接位姿），各自使用匹配的水、离子和非键合参数，并独立平衡。 [Amber manuals](https://ambermd.org/Manuals.php) · [GROMACS force-field notes](https://manual.gromacs.org/2026.3/user-guide/force-fields.html) · [MacKerell force-field ports](https://mackerell.umaryland.edu/charmm_ff.shtml)
 
+在包含 `protein.pdb` 和 `lig_pose.sdf` 的重复目录操作。可使用完整的 `docking-gromacs` 环境，或分别激活 `ligandtools` 做 AMBER 配体制备、激活 `docktools` 做 CHARMM MOL2 转换。执行 GROMACS 步骤时使用 `gmx-cpu` 或已选定的 2026.3 构建。用完 `cgenff-tools` 后，先切回 GROMACS 环境再转换坐标。
+
 ### 路线 A · GAFF2 + AM1-BCC 配体
 
 Open Babel 在这里仅做格式转换，保持已有 3D 几何。示例的 `-n 0` 适用于已确认的中性配体。根据配体实际整数净电荷改为 `-n -1`、`-n 1` 等。 [AmberTools](https://ambermd.org/AmberTools.php) · [ACPYPE quick start](https://acpype.readthedocs.io/en/latest/)
 
-**环境：** `ligandtools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docking-gromacs / ligandtools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-conda activate ligandtools
 obabel lig_pose.sdf -O lig_pose.mol2
 obabel lig_pose.mol2 -O lig_pose_roundtrip.sdf
 obabel lig_pose.sdf -ocan
@@ -38,7 +39,7 @@ obrms lig_pose.sdf lig_pose_roundtrip.sdf
 
 先对照两份 SDF 的化学图、净电荷和手性，再看原位 heavy atom（重原子） RMSD 是否符合格式写出精度。`obrms` 在这里仅用于几何检查。核对通过后，运行 ACPYPE。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docking-gromacs / ligandtools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 acpype -i lig_pose.mol2 -b LIG -a gaff2 -c bcc -n 0
@@ -58,10 +59,9 @@ cp LIG.acpype/LIG_GMX.itp ligand.itp
 
 1. 在当前 CHARMM 重复目录准备单个配体的 MOL2，保留明确的 bond order（键级）、手性、净电荷、显式氢和对接 heavy atom（重原子）位置。对照原 SDF 检查转换结果。<sup>[15](REFERENCES.zh-CN.md#ref-15),[16](REFERENCES.zh-CN.md#ref-16)</sup>
 
-**环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docking-gromacs / docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-conda activate docktools
 obabel lig_pose.sdf -O lig_pose.mol2 --title LIG
 obabel lig_pose.sdf -ocan
 obabel lig_pose.mol2 -ocan
@@ -103,10 +103,9 @@ ls -lh lig.itp lig.prm lig_ini.pdb
 
 5. 用任一 GROMACS 构建把配体坐标转为 GRO，并核查 `lig.itp` 的原子顺序、电荷和配体质量。使用转换器生成的 `lig.prm` 保存全局参数。核对 `lig_ini.pdb` 和 `ligand.gro` 的原位坐标。转换器生成的单配体 TOP 可用于审查，其 `[ defaults ]`、`[ system ]` 和 `[ molecules ]` 由最终系统 TOP 统一管理。
 
-**环境：** `gmx-cpu`。**预期文件或核查依据：** `ligand.gro`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `GROMACS 2026.3`。**预期文件或核查依据：** `ligand.gro`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-conda activate gmx-cpu
 gmx editconf -f lig_ini.pdb -o ligand.gro
 cp lig.itp ligand.itp
 head -n 2 ligand.gro
@@ -194,10 +193,9 @@ awk '/^[[:space:]]*\[[[:space:]]*atoms[[:space:]]*\]/{in_atoms=1;next}
 
 **CPU 版**
 
-**环境：** `gmx-cpu`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `GROMACS 2026.3`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-conda activate gmx-cpu
 gmx --version
 ```
 
@@ -212,7 +210,7 @@ gmx --version
 
 **路线 A**
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `protein.gro`, `topol.top`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `GROMACS 2026.3`。**预期文件或核查依据：** `protein.gro`, `topol.top`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 gmx pdb2gmx -f protein.pdb -o protein.gro -p topol.top -i posre.itp  -ff amber99sb-ildn -water tip3p -ignh
@@ -221,7 +219,7 @@ cp topol.top topol_protein.top
 
 **路线 B**
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `protein.gro`, `topol.top`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `GROMACS 2026.3`。**预期文件或核查依据：** `protein.gro`, `topol.top`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 gmx pdb2gmx -f protein.pdb -o protein.gro -p topol.top -i posre.itp  -ff charmm36-feb2026_cgenff-5.0 -water tip3p -ignh
@@ -270,7 +268,7 @@ LIG  1
 
 `LIG` 一行使用 `ligand.itp` 里 `[ moleculetype ]` 的**实际名称**。在 `ligand.gro` 上生成配体局部索引和 heavy atom（重原子）位置限制。GRO 的质量选择可能依赖名称推断，逐原子与 ITP 的质量列核对后，在 `gmx genrestr` 提示中选 `Ligand_heavy_local`。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `ligand.gro`, `ligand_heavy_local.ndx`, `posre_ligand.itp`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `GROMACS 2026.3`。**预期文件或核查依据：** `ligand.gro`, `ligand_heavy_local.ndx`, `posre_ligand.itp`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 gmx select -s ligand.gro -select '"Ligand_heavy_local" mass > 2.5' -on ligand_heavy_local.ndx

@@ -2,7 +2,7 @@
 
 [English](TROUBLESHOOTING.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -67,6 +67,8 @@
 **什么时候暂停** 口袋关键部分缺失、结构域相对构象无法判断、必要成分的化学状态未定，或 force field（力场）转换无法验证时，先完成结构或参数审查。对于混合成分，逐项核实蛋白、脂质、糖、水、离子和配体参数间的兼容性。需要不同的 1–4 缩放时，可经验证地使用显式配对参数。仅改全局 `fudgeQQ` 或 `fudgeLJ` 会影响所有由默认规则生成的配对。<sup>[1](#ref-1),[2](#ref-2),[3](#ref-3)</sup> [AlphaFold DB confidence and PAE](https://alphafold.ebi.ac.uk/faq) · [Amber reference manuals](https://ambermd.org/Manuals.php) · [GROMACS topology file formats](https://manual.gromacs.org/documentation/current/reference-manual/topologies/topology-file-formats.html) · [Lipid21 paper](https://doi.org/10.1021/acs.jctc.1c01217) · [GLYCAM06 paper](https://doi.org/10.1002/jcc.20820) · [PACKMOL-Memgen paper](https://doi.org/10.1021/acs.jcim.9b00269)
 
 **膜体系的平衡验收** 检查温度、体积、侧向膜面积、膜厚、各膜叶行为以及关键共价连接。对膜褶皱或跨膜周期映像，检查几何与成像方式。面积、厚度和每脂质面积按组成、温度与计算定义分别解释。先确认是否还有有效位置限制，再判断放开限制后的行为。 [GROMACS MDP parameters](https://manual.gromacs.org/documentation/current/user-guide/mdp-options.html) · [Lipid21 methods](https://doi.org/10.1021/acs.jctc.1c01217)
+
+**分别核查对接修复和 MD 拓扑。** 编辑前先检查生物学组装和口袋组成。缺失侧链原子时，先核对替代构象，再按结构依据修复局部几何。硒代蛋氨酸（MSE）等残基需记录有依据的转换，或为保留的化学结构使用经过验证的模板。若口袋包含必要金属或辅因子，记录保留的组分及配位，再分别核查其对接表示和 MD 参数。[Meeko 受体模板](https://meeko.readthedocs.io/en/develop/py_build_temp.html) · [复杂体系参数核查](RESEARCH.zh-CN.md#complex-systems)
 
 <a name="docking-errors"></a>
 

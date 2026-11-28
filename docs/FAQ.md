@@ -2,7 +2,7 @@
 
 **English** · [简体中文](FAQ.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -10,7 +10,7 @@ Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com
 
 ## Where do I start?
 
-Use [the quickstart](QUICKSTART.md#dock) if you have no prepared files. For an existing docking pose, begin with [pose transfer](DOCKING.md#pose-handoff). For an existing trajectory, start with [trajectory analysis](ANALYSIS.md#analysis).
+Use [the docking entry](QUICKSTART.md#dock) to prepare inputs or run the public example. Use [the MD entry](QUICKSTART.md#existing-pose) for a reviewed pose or prebuilt system and [the analysis entry](QUICKSTART.md#existing-trajectory) for an existing trajectory or figure data.
 
 ## What failed first?
 

@@ -2,7 +2,7 @@
 
 [English](FAQ.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -10,7 +10,7 @@
 
 ## 从哪里开始？
 
-手上没有已制备文件，先看[快速入门](QUICKSTART.zh-CN.md#dock)。已有 docking pose（对接位姿），先做[对接位姿交接](DOCKING.zh-CN.md#pose-handoff)。已有轨迹，则进入[轨迹分析](ANALYSIS.zh-CN.md#analysis)。
+制备输入或复跑公开示例，请走[只做对接](QUICKSTART.zh-CN.md#dock)。已有审核过的位姿或建系文件，走[只做 MD](QUICKSTART.zh-CN.md#existing-pose)。已有轨迹或制图数据，走[分析或出图](QUICKSTART.zh-CN.md#existing-trajectory)。
 
 ## 先查哪一步？
 

@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 面向可溶性蛋白–配体体系的可复现分子对接与分子动力学工作流。膜体系、共价配体、必需金属或辅因子、非标准残基需采用专用建模方案。公开 1IEP 示例采用已确定的 **+1** 配体微观状态。
 
@@ -12,7 +12,7 @@
 
 [常见问题](docs/FAQ.zh-CN.md) · [版本矩阵](docs/QUICKSTART.zh-CN.md#version-matrix) · [验证范围](docs/QUICKSTART.zh-CN.md#validation-boundary)
 
-**验证记录：** 2026-11-28，公开 1IEP 数据，Linux x86-64 CPU 路线。文档与可执行命令对应同一源码提交。
+**验证记录：** 2026-11-28，公开 1IEP 数据，Linux x86-64 CPU 路线。上述链接指向已验证的 CPU 工作流提交。
 
 <a name="contact"></a>
 
@@ -30,9 +30,9 @@
 
 ## 从这里开始
 
-1. **只做对接：** 使用 SHA-256 校验过的 1IEP 输入完成 01–05。[快速入门](docs/QUICKSTART.zh-CN.md#dock)。
-2. **只做 MD：** 使用已核验的 docking pose（对接位姿）或已建系输入。[体系准备](docs/SYSTEM_SETUP.zh-CN.md#topology) · [快速入门](docs/QUICKSTART.zh-CN.md#quickstart-md)。
-3. **只想出图：** 准备相互匹配的轨迹、topology（拓扑）和索引。[分析](docs/ANALYSIS.zh-CN.md#analysis)。
+1. **只做对接：** 使用[已校验的 1IEP 示例或自有输入](docs/QUICKSTART.zh-CN.md#dock)，获得已核查的对接位姿。
+2. **已有位姿，只做 MD：** [准备已审核的 PDB 和位姿 SDF](docs/QUICKSTART.zh-CN.md#existing-pose)，从参数化或已完成的建系阶段继续。
+3. **已有轨迹，分析或出图：** [使用配套的轨迹输入或已有制图数据](docs/QUICKSTART.zh-CN.md#existing-trajectory)。
 
 <a name="overview"></a>
 
@@ -68,7 +68,7 @@
 11. [分析](docs/ANALYSIS.zh-CN.md#analysis)
 12. [复现记录](docs/ANALYSIS.zh-CN.md#reproducibility)
 
-[许可](LICENSE) · [CITATION.cff](CITATION.cff) · [更新记录](CHANGELOG.md) · [贡献规则](CONTRIBUTING.md)
+[许可](LICENSE) · [CITATION.cff](CITATION.cff) · [更新记录](CHANGELOG.zh-CN.md) · [贡献规则](CONTRIBUTING.zh-CN.md)
 
 <details>
 <summary>旧版章节跳转</summary>

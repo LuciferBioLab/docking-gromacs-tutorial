@@ -2,7 +2,7 @@
 
 [English](SIMULATION.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -13,6 +13,8 @@
 - **输入** 待建盒复合物与 MDP
 - **输出** 输出已溶剂化、最小化及平衡体系
 - **失败时的操作** 定位首条预处理或动力学错误
+
+在已准备好的重复目录执行，确认 `PATH` 上的 GROMACS 版本为 2026.3。加盒前检查 `complex_raw.gro`、`topol.top`、本地 include 文件和各阶段 MDP 是否齐全。已有溶剂化体系时，使用匹配的坐标和拓扑文件，从后续对应阶段开始。
 
 ### 建盒、溶剂化和离子
 
@@ -142,7 +144,9 @@ gmx energy -f npt.edr -o pressure.xvg
 
 ```bash
 gmx grompp -f smoke.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx  -o smoke.tpr -pp smoke_processed.top -po smoke_out.mdp
-grep -n 'position_restraints' smoke_processed.top
+if grep -n -E '^[[:space:]]*\[[[:space:]]*position_restraints[[:space:]]*\]' smoke_processed.top; then
+  echo 'Review active position restraints before running this TPR.' >&2
+fi
 ```
 
 **环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘占用取决于体系大小与模拟时长。
@@ -151,13 +155,20 @@ grep -n 'position_restraints' smoke_processed.top
 gmx mdrun -v -deffnm smoke "${md_backend[@]}"
 ```
 
+若从已验收的 NPT 直接进入 Pilot，将下方的 `PILOT_START` 改为 `npt`。仅在可选短测完成且 GRO 和 CPT 已核查时使用 `smoke`。按[步骤 08](SYSTEM_SETUP.zh-CN.md#simulation)设置无位置限制的 `pilot.mdp`。
+
 **环境：** `docking-gromacs`。**预期文件或核查依据：** `topol.top`, `pilot.tpr`, `pilot_processed.top`。耗时和磁盘占用取决于体系大小与模拟时长。
 
 ```bash
-gmx grompp -f pilot.mdp -c smoke.gro -t smoke.cpt -p topol.top -n index.ndx  -o pilot.tpr -pp pilot_processed.top -po pilot_out.mdp
-gmx mdrun -v -deffnm pilot "${md_backend[@]}"
-gmx check -f pilot.xtc
-grep -A2 'Performance:' pilot.log
+(
+  set -e
+  PILOT_START=smoke
+  test -s "$PILOT_START.gro" && test -s "$PILOT_START.cpt" || exit 1
+  gmx grompp -f pilot.mdp -c "$PILOT_START.gro" -t "$PILOT_START.cpt" -p topol.top -n index.ndx  -o pilot.tpr -pp pilot_processed.top -po pilot_out.mdp
+  gmx mdrun -v -deffnm pilot "${md_backend[@]}"
+  gmx check -f pilot.xtc
+  grep -A2 'Performance:' pilot.log
+)
 ```
 
 从选定的合格末态生成生产 TPR。示例用 `pilot`；若研究方案从通过验收的 NPT 末态开始，将其改为 `npt`，始终使用同一阶段配套的 GRO 和 CPT。核对处理后的 MDP、展开 topology（拓扑）与实际 TPR，并记录起点选择理由。
@@ -167,7 +178,9 @@ grep -A2 'Performance:' pilot.log
 ```bash
 START=pilot
 gmx grompp -f md.mdp -c "$START.gro" -t "$START.cpt" -p topol.top -n index.ndx  -o md.tpr -pp md_processed.top -po md_out.mdp
-grep -n 'position_restraints' md_processed.top
+if grep -n -E '^[[:space:]]*\[[[:space:]]*position_restraints[[:space:]]*\]' md_processed.top; then
+  echo 'Review active position restraints before running this TPR.' >&2
+fi
 grep -Ei '^[[:space:]]*(dt|nsteps|nstxout-compressed|compressed-x-grps)[[:space:]]*=' md_out.mdp
 ```
 

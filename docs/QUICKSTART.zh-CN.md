@@ -2,19 +2,35 @@
 
 [English](QUICKSTART.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
+
+在 Linux 或 WSL2 的 Linux 发行版中使用 Bash。仓库命令从包含 `Makefile` 和 `examples/` 的本地仓库根目录运行。在 Windows 中先用 PowerShell 运行 `wsl -l -v` 检查发行版，再进入 Linux，工作目录放在其 Linux 文件系统中。[Linux 与 WSL2 环境](ENVIRONMENT.zh-CN.md#setup)
+
+若尚未下载仓库，先确认 Linux shell 中有 Git 与 GNU Make，再运行以下命令。
+
+```bash
+git clone https://github.com/LuciferBioLab/docking-gromacs-tutorial.git
+cd docking-gromacs-tutorial
+```
+
+| 已有材料 | 入门路线 |
+| --- | --- |
+| 已有受体和配体，或尚无制备好的输入 | [只做对接](#dock) |
+| 已核验的对接位姿，或已建系的 MD 输入 | [从已有位姿开始 MD](#existing-pose) |
+| 已有轨迹，或已算好的指标和结构 | [分析或出图](#existing-trajectory) |
 
 <a name="dock"></a>
 
 ## 对接并核验公开共晶结构
 
-在 Linux 或 WSL2 的仓库根目录开始。激活环境后的三条是运行步骤。首次环境解算与下载另计。
+初次安装后即可运行公开 1IEP CPU 示例。下方的独立 `docktools` 环境安装步骤 01–05 所需的固定版本工具。若已有完整的 `docking-gromacs` 环境，激活该环境后执行下面激活命令之后的三条命令。
 
 ```bash
-conda env create -f environment.yml
-conda activate docking-gromacs
+conda create -n docktools --override-channels -c conda-forge python=3.11 vina=1.2.7 \
+  meeko=0.8.0 rdkit=2026.03.1 gemmi=0.7.5 openbabel=3.2.1
+conda activate docktools
 make fixtures
 make dock RUN=runs/1iep-dock THREADS=4
 bash scripts/check_05.sh runs/1iep-dock
@@ -35,11 +51,54 @@ Vina 第一名得分为 −13.270 kcal/mol，报告为对接分数。RMSD 使用
 
 [输入来源](../examples/1iep/PROVENANCE.md) · [三个共晶参考](../examples/regression/PROVENANCE.md) · [回归 RMSD 脚本](../scripts/redocking_rmsd.py)
 
+使用自己的输入时，从[受体和配体制备](DOCKING.zh-CN.md#local-inputs)接到 [CPU、CUDA 或 OpenCL 对接](DOCKING.zh-CN.md#batch-docking)。搜索盒的位置和边长须与该 receptor（受体）坐标系对应，单位为 Å。保留原始 SDF、原始 PDBQT、日志和位姿记录。公开示例失败时，先查 `runs/1iep-dock/logs/` 中的第一条报错，再看[对接排错](TROUBLESHOOTING.zh-CN.md#docking-errors)。
+
+<a name="existing-pose"></a>
+
+## 从已有 docking pose（对接位姿）开始 MD
+
+使用 Linux 或 WSL2 Bash。若需要同时使用 AmberTools、ACPYPE、RDKit 与 GROMACS，从仓库根目录创建或激活完整的 CPU 环境。使用[拆分环境](ENVIRONMENT.zh-CN.md#setup)时，按各阶段命令切换。
+
+准备已审查、可用于 MD 的蛋白 PDB，以及单记录位姿 SDF。核对 SDF 的键级、手性、整数净电荷和对接重原子坐标，确认两者处于**同一 receptor（受体）坐标系**。若只有 PDBQT 位姿，先按[步骤 05](DOCKING.zh-CN.md#pose-handoff)恢复 SDF。保留原始配体化学结构和原子映射。每个 force field（力场）、位姿和重复使用独立目录，执行前替换下方示例源路径。
+
+```bash
+conda env create -f environment.yml
+conda activate docking-gromacs
+```
+
+```bash
+protein='/path/to/reviewed_protein.pdb'
+pose='/path/to/verified_pose.sdf'
+run='runs/study01/amber_pose01_rep01'
+
+test -s "$protein" && test -s "$pose" &&
+  mkdir -p -- "$(dirname -- "$run")" && mkdir -- "$run" &&
+  cp -- "$protein" "$run/protein.pdb" &&
+  cp -- "$pose" "$run/lig_pose.sdf" &&
+  cd -- "$run"
+```
+
+| 已有输入 | 接到哪一步 |
+| --- | --- |
+| 已核验的位姿 SDF 和蛋白 PDB | 选择 AMBER 或 CHARMM [参数化路线](SYSTEM_SETUP.zh-CN.md#topology)。记录配体净电荷（e），核对 Å 到 nm 的转换。[组装](SYSTEM_SETUP.zh-CN.md#complex-assembly)后得到 `complex_raw.gro`、`topol.top` 及其 include 文件。 |
+| 已配对的组装结构和 topology（拓扑） | 从[体系准备与平衡](SIMULATION.zh-CN.md#equilibration)的对应步骤进入，并使用[各阶段 MDP](SYSTEM_SETUP.zh-CN.md#simulation)。加盒示例从未溶剂化的 `complex_raw.gro` 开始。已有溶剂化或平衡结构时，从已验收的阶段进入，使用与该阶段匹配的拓扑、坐标、索引组和检查点。 |
+| 已验收的 NPT 或 Pilot 终态 | 用同一阶段的 GRO 和 CPT [生成生产 TPR](SIMULATION.zh-CN.md#production)。核对 TPR 与拓扑，再按[服务器交接](SIMULATION.zh-CN.md#server-handoff)执行。 |
+
+预处理失败时先读第一条 `grompp` 报错，再按[参数化与拓扑排错](TROUBLESHOOTING.zh-CN.md#topology-errors)核对电荷、原子顺序、拓扑 include 文件与位置限制参考。若体系有多链口袋、非标准残基、金属、辅因子或膜组装，先查[复杂体系](TROUBLESHOOTING.zh-CN.md#complex-systems)再选择方案。
+
+<a name="existing-trajectory"></a>
+
+## 用已有轨迹分析或出图
+
+在新分析目录中放入全体系 XTC、与之配对的 TPR 和对应同一原子顺序的索引。步骤 11 使用本地文件名 `md.xtc`、`md.tpr` 和 `index.ndx`。轨迹计算使用已有的 GROMACS 环境。只需安装分析工具时，可按 [CPU 环境设置](ENVIRONMENT.zh-CN.md#setup)安装 GROMACS 2026.3。处理周期边界或计算配体 RMSD 前，先做[输入和索引核查](ANALYSIS.zh-CN.md#analysis)。抽取过原子的轨迹需搭配相同原子子集和顺序的参考结构与索引。已有 XVG 或配对的结构文件时，可直接使用 [Python 绘图](ANALYSIS.zh-CN.md#python-figures)或 [PyMOL 结构渲染](ANALYSIS.zh-CN.md#pymol-image-export)。
+
+[已发布的 1IEP v0.1.0 示例包](https://github.com/LuciferBioLab/docking-gromacs-tutorial/releases/tag/v0.1.0)可用于绘制包内的配体 RMSD 并查看 `analysis/complex.pdb`。其中含短测 XTC，且完整轨迹分析所需的 TPR 和索引须另外准备。用归档 XVG 出图时保留其时间与距离单位。
+
 <a name="quickstart-md"></a>
 
-## 运行 MD 教学流程
+## 运行公开 1IEP MD 教学示例
 
-使用相同环境和仓库根目录。这些命令会创建新目录，每次重跑请使用新名称。
+使用前面创建的完整 `docking-gromacs` 环境，并先回到仓库根目录。短测和 1 ns 示例都会新建目录，每次运行请选择新的目录名。
 
 ```bash
 bash scripts/run_example.sh --dry-run smoke runs/1iep-smoke

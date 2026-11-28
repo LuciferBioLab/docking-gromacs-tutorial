@@ -3,6 +3,8 @@ repo_url: https://github.com/LuciferBioLab/docking-gromacs-tutorial
 theme:
   name: material
   language: en
+markdown_extensions:
+  - md_in_html
 plugins:
   - search
   - i18n:
@@ -13,6 +15,21 @@ plugins:
           name: English
         - locale: zh
           name: 简体中文
+          nav_translations:
+            Home: 首页
+            Quickstart: 快速入门
+            Workflow: 流程与文件地图
+            Environment: 环境与重对接
+            Docking: 对接与位姿交接
+            System setup: 力场与建系
+            Simulation: 平衡与生产
+            Analysis: 轨迹分析与出图
+            Validation: 对接验证
+            Research extensions: 研究扩展
+            Troubleshooting: 排错
+            FAQ: 常见问题
+            Glossary: 术语
+            References: 参考文献
 exclude_docs: |
   source/
 nav:

@@ -2,7 +2,7 @@
 
 **English** · [简体中文](SYSTEM_SETUP.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -21,14 +21,15 @@ Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com
 
 Route A provides the baseline for the soluble protein–ligand systems covered here. Select route B when a CHARMM36m protocol is justified and suitable CGenFF parameters are available. To compare the force-field families, start from the same ligand microstate and pose, apply each family's solvent, ion, and nonbonded settings, and equilibrate each system independently. [Amber manuals](https://ambermd.org/Manuals.php) · [GROMACS force-field notes](https://manual.gromacs.org/2026.3/user-guide/force-fields.html) · [MacKerell force-field ports](https://mackerell.umaryland.edu/charmm_ff.shtml)
 
+Work in the replicate directory containing `protein.pdb` and `lig_pose.sdf`. Use the full `docking-gromacs` environment or activate `ligandtools` for AMBER ligand preparation and `docktools` for CHARMM MOL2 conversion. For GROMACS steps, activate `gmx-cpu` or load your chosen 2026.3 build. After using `cgenff-tools`, return to the GROMACS environment before converting coordinates.
+
 ### Route A · GAFF2 + AM1-BCC ligand
 
 Use Open Babel for format conversion while preserving the existing 3D geometry. The example's `-n 0` assumes a verified neutral ligand. Set `-n -1`, `-n 1`, or another integer according to the selected chemical state's net charge. [AmberTools](https://ambermd.org/AmberTools.php) · [ACPYPE quick start](https://acpype.readthedocs.io/en/latest/)
 
-**Environment:** `ligandtools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docking-gromacs or ligandtools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-conda activate ligandtools
 obabel lig_pose.sdf -O lig_pose.mol2
 obabel lig_pose.mol2 -O lig_pose_roundtrip.sdf
 obabel lig_pose.sdf -ocan
@@ -38,7 +39,7 @@ obrms lig_pose.sdf lig_pose_roundtrip.sdf
 
 Compare molecular connectivity, net charge, and stereochemistry across the SDF round trip. Check that heavy-atom RMSD in the original coordinate frame is within the precision of the file format. Here, use `obrms` for geometry only. Use ACPYPE after the chemistry and geometry checks pass.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docking-gromacs or ligandtools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 acpype -i lig_pose.mol2 -b LIG -a gaff2 -c bcc -n 0
@@ -58,10 +59,9 @@ Use the filenames produced by your ACPYPE version. Inspect the Antechamber, SQM,
 
 1. In the CHARMM replicate directory, prepare a single-ligand MOL2 with the reviewed bond orders, stereochemistry, net charge, explicit hydrogens, and docked heavy-atom coordinates. Compare it with the source SDF.<sup>[15](REFERENCES.md#ref-15),[16](REFERENCES.md#ref-16)</sup>
 
-**Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docking-gromacs or docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-conda activate docktools
 obabel lig_pose.sdf -O lig_pose.mol2 --title LIG
 obabel lig_pose.sdf -ocan
 obabel lig_pose.mol2 -ocan
@@ -103,10 +103,9 @@ ls -lh lig.itp lig.prm lig_ini.pdb
 
 5. Use either GROMACS build to convert the ligand coordinates to GRO, then check atom order, charges, and masses in `lig.itp`. Keep `lig.prm` as the global parameter include. Check the original coordinates in `lig_ini.pdb` and `ligand.gro`. The converter's standalone TOP is useful for review. The final system TOP owns `[ defaults ]`, `[ system ]`, and `[ molecules ]`.
 
-**Environment:** `gmx-cpu`. **Expected files or evidence:** `ligand.gro`. For planning, use the per-stage budget in the quickstart.
+**Environment:** `GROMACS 2026.3`. **Expected files or evidence:** `ligand.gro`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-conda activate gmx-cpu
 gmx editconf -f lig_ini.pdb -o ligand.gro
 cp lig.itp ligand.itp
 head -n 2 ligand.gro
@@ -194,10 +193,9 @@ Prepare the protein topology in the selected force-field replicate directory. Ac
 
 **CPU build**
 
-**Environment:** `gmx-cpu`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `GROMACS 2026.3`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-conda activate gmx-cpu
 gmx --version
 ```
 
@@ -212,7 +210,7 @@ gmx --version
 
 **Route A**
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `protein.gro`, `topol.top`. For planning, use the per-stage budget in the quickstart.
+**Environment:** `GROMACS 2026.3`. **Expected files or evidence:** `protein.gro`, `topol.top`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 gmx pdb2gmx -f protein.pdb -o protein.gro -p topol.top -i posre.itp  -ff amber99sb-ildn -water tip3p -ignh
@@ -221,7 +219,7 @@ cp topol.top topol_protein.top
 
 **Route B**
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `protein.gro`, `topol.top`. For planning, use the per-stage budget in the quickstart.
+**Environment:** `GROMACS 2026.3`. **Expected files or evidence:** `protein.gro`, `topol.top`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 gmx pdb2gmx -f protein.pdb -o protein.gro -p topol.top -i posre.itp  -ff charmm36-feb2026_cgenff-5.0 -water tip3p -ignh
@@ -270,7 +268,7 @@ For both routes, ensure that the order in `[ molecules ]` matches the protein, l
 
 Use the name in `[ moleculetype ]` from `ligand.itp` in place of `LIG`. Generate a ligand-local index and heavy-atom restraints from `ligand.gro`. A mass selection from GRO coordinates can rely on atom names. Compare the selected atoms against their ITP masses before choosing `Ligand_heavy_local` in `gmx genrestr`.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `ligand.gro`, `ligand_heavy_local.ndx`, `posre_ligand.itp`. For planning, use the per-stage budget in the quickstart.
+**Environment:** `GROMACS 2026.3`. **Expected files or evidence:** `ligand.gro`, `ligand_heavy_local.ndx`, `posre_ligand.itp`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 gmx select -s ligand.gro -select '"Ligand_heavy_local" mass > 2.5' -on ligand_heavy_local.ndx

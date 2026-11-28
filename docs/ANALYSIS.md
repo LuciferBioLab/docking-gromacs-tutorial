@@ -2,7 +2,7 @@
 
 **English** · [简体中文](ANALYSIS.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -14,9 +14,21 @@ Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com
 - **Outputs** analysis series and figure inputs
 - **If a step fails** check imaging and selection if values jump
 
+### Check incoming trajectory files
+
+Work in a separate analysis directory with GROMACS 2026.3 on `PATH`. Copy or link the matching full-system trajectory and TPR under the local names `md.xtc` and `md.tpr`. For a manual run, use its `index.ndx`. For a local automated 1IEP smoke run, use `md/analysis_full.ndx` from the run as your starting index. It contains the basic groups for ligand RMSD. Review or add metric-specific groups before running other commands. Keep the original input files unchanged.
+
+```bash
+gmx check -f md.xtc -s1 md.tpr
+```
+
+Check the original frame count, atom count, and first and last timestamps. With `-s1 md.tpr`, `gmx check` also compares bonds defined in the TPR against the trajectory. Confirm the trajectory, TPR, and index were produced for the same atom order. If atom count or order is wrong, recover matching inputs. For a reduced solute XTC, use a matching subset reference and index for the chosen analysis, or use its matching PDB for visualization. [GROMACS check](https://manual.gromacs.org/2026.3/onlinehelp/gmx-check.html)
+
+For an absent or incomplete index, use `gmx make_ndx -f md.tpr -o index.ndx`. Preserve `System`, `Protein`, and `Backbone`, select the intended ligand instance by the reviewed residue or atom IDs and name the group `Ligand`. Create `Complex` as the union of `Protein` and `Ligand`. For the remaining metrics, add `C_alpha`, `Protein_heavy` and `Ligand_heavy` by reviewing the TPR and atom selections. The [named-group example](SIMULATION.md#equilibration) shows the selection expressions for a known protein-first atom order. Check that the protein and ligand groups are disjoint and refer to the correct atoms. [GROMACS make_ndx](https://manual.gromacs.org/2026.3/onlinehelp/gmx-make_ndx.html)
+
 ### Periodic boundary condition correction
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `md.tpr`, `whole.xtc`, `centered.xtc`. For planning, use the per-stage budget in the quickstart.
+**Environment:** GROMACS 2026.3. **Expected files:** `whole.xtc` and `centered.xtc`.
 
 ```bash
 gmx trjconv -s md.tpr -f md.xtc -n index.ndx -o whole.xtc -pbc whole
@@ -24,13 +36,13 @@ gmx trjconv -s md.tpr -f whole.xtc -n index.ndx -o centered.xtc -pbc mol -center
 gmx check -f centered.xtc
 ```
 
-For the first command, choose **System** as output. For the second, center on **Protein** and write **System**. Inspect early, middle, and late frames to verify the relative periodic images of the receptor, ligand, and any multichain assembly. Preserve physical displacement when analyzing dissociation.
+For the first `trjconv` command, choose **System** as output. For the second, center on **Protein** and write **System**. Inspect early, middle, and late frames to verify the relative periodic images of the receptor, ligand, and any multichain assembly. Preserve physical displacement when analyzing dissociation.
 
 **Official usage.** Consult the versioned `trjconv` reference and inspect the trajectory when combining `-pbc`, `-center`, or `-fit`. [GROMACS trjconv](https://manual.gromacs.org/2026.3/onlinehelp/gmx-trjconv.html)
 
 ### Structural and contact metrics
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `md.tpr`, `rmsd_protein.xvg`, `rmsd_ligand.xvg`, `rmsf.xvg`, `rg.xvg`, `sasa.xvg`, `mindist.xvg`, `contacts.xvg`. For planning, use the per-stage budget in the quickstart.
+**Environment:** GROMACS 2026.3. **Expected files or evidence:** `rmsd_protein.xvg`, `rmsd_ligand.xvg`, `rmsf.xvg`, `rg.xvg`, `sasa.xvg`, `mindist.xvg`, `contacts.xvg`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 gmx rms -s md.tpr -f centered.xtc -n index.ndx -o rmsd_protein.xvg -tu ns
@@ -39,7 +51,7 @@ gmx rmsf -s md.tpr -f centered.xtc -n index.ndx -res -o rmsf.xvg
 gmx gyrate -s md.tpr -f centered.xtc -n index.ndx -sel 'group "Protein"' -o rg.xvg
 gmx sasa -s md.tpr -f centered.xtc -n index.ndx  -surface 'group "Complex"' -output 'group "Protein"; group "Ligand"' -o sasa.xvg
 gmx mindist -s md.tpr -f centered.xtc -n index.ndx -od mindist.xvg -on contacts.xvg -d 0.35
-gmx hbond -s md.tpr -f centered.xtc -n index.ndx  -r 'group "Protein"' -t 'group "Ligand"' -num hbond.xvg
+gmx hbond -s md.tpr -f centered.xtc -n index.ndx  -r 'group "Protein"' -t 'group "Ligand"' -num hbond.xvg -hbr 0.35 -hba 30
 ```
 
 For an ACPYPE ligand, verify that GROMACS 2026.3 can read the elements as well as the index selections. The [1IEP reference failure and fix](TROUBLESHOOTING.md#atomic-number-analysis) includes verified output.
@@ -51,27 +63,29 @@ For an ACPYPE ligand, verify that GROMACS 2026.3 can read the elements as well a
 | RMSF | Select `C_alpha` and preserve residue and chain identifiers. |
 | Rg and SASA | Rg describes whole-protein compactness, while SASA measures protein and ligand exposure in the complex. |
 | Minimum distance and contacts | Select `Protein_heavy` followed by `Ligand_heavy` and document the example cutoff, 0.35 nm. |
-| Hydrogen bonds | The command uses the newer `gmx hbond` interface. Check local syntax with `gmx hbond -h` and report distance and angle definitions. |
+| Hydrogen bonds | GROMACS 2026.3 uses a 0.35 nm donor–acceptor distance cutoff and a 30° acceptor–donor–hydrogen angle cutoff in this example. Verify element assignment before interpreting counts. |
 
 
-Interpret ligand RMSD after protein alignment together with minimum distance, residue contacts, and representative conformations. These measurements help distinguish displacement, reorientation, and dissociation. Analyze independent replicates separately and report analysis windows and exclusions. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [New hydrogen-bond tool](https://manual.gromacs.org/current/onlinehelp/gmx-hbond.html)
+Interpret ligand RMSD after protein alignment together with minimum distance, residue contacts, and representative conformations. These measurements help distinguish displacement, reorientation, and dissociation. Analyze independent replicates separately and report analysis windows and exclusions. [GROMACS manual](https://manual.gromacs.org/2026.3/) · [New hydrogen-bond tool](https://manual.gromacs.org/2026.3/onlinehelp/gmx-hbond.html)
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `md.tpr`, `complex_movie.xtc`, `complex_movie.pdb`. For planning, use the per-stage budget in the quickstart.
+**Environment:** GROMACS 2026.3. **Expected files or evidence:** `complex_movie.xtc`, `complex_movie.pdb`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-grep -v '^[#@]' rmsd_ligand.xvg > rmsd_ligand_columns.txt
-gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.xtc -dt 100
-gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.pdb -dump 0
+gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.xtc -skip 10
+gmx check -f complex_movie.xtc
+read -r -p 'First time in complex_movie.xtc (ps): ' first_frame_ps
+gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.pdb -dump "${first_frame_ps:?Enter the first frame time in ps}"
 ```
 
-Select **Complex** for both exports. Verify the first trajectory time with `gmx check -f complex_movie.xtc` and replace `-dump 0` if the first time differs from 0 ps. The reference PDB and trajectory must use the same atom order.
+Select **Complex** for both exports. The movie keeps every tenth stored frame. Adjust `-skip` for your trajectory, and enter the actual first movie time in ps for the reference PDB. The reference PDB and trajectory must use the same atom order.
 
-Within the analysis window, select a representative frame using a stated criterion such as contact persistence, ligand displacement, or conformational clustering. Check available timestamps with `gmx check -f centered.xtc`, substitute the selected time for the illustrative 50,000 ps, and choose **Complex**. Report the criterion and actual frame time.
+Within the analysis window, select a representative frame using a stated criterion such as contact persistence, ligand displacement, or conformational clustering. Check available timestamps with `gmx check -f centered.xtc`, enter the selected time in ps, and choose **Complex**. Report the criterion and actual frame time.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `md.tpr`, `representative.pdb`. For planning, use the per-stage budget in the quickstart.
+**Environment:** GROMACS 2026.3. **Expected files or evidence:** `representative.pdb`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o representative.pdb -dump 50000
+read -r -p 'Reviewed representative frame time (ps): ' frame_ps
+gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o representative.pdb -dump "${frame_ps:?Enter a reviewed frame time in ps}"
 ```
 
 <a name="publication-figures"></a>
@@ -128,6 +142,8 @@ save pocket_view.pse
 
 Suggested citation · The PyMOL Molecular Graphics System, Version X.Y, Schrödinger, LLC. Replace X.Y with the installed version. [PyMOL Citation Guidance](https://pymol.org/support.html)
 
+<a name="python-figures"></a>
+
 #### B. Trajectory checks and quantitative plots in Python
 
 Calculate the metrics first and archive the original XVG output. Use MDAnalysis for trajectory inspection and custom atom selections, pandas for replicate-level tables, and Matplotlib or seaborn for plots and vector export. The example plots ligand heavy-atom RMSD after alignment to the protein.<sup>[21](REFERENCES.md#ref-21),[22](REFERENCES.md#ref-22),[23](REFERENCES.md#ref-23),[24](REFERENCES.md#ref-24),[25](REFERENCES.md#ref-25)</sup> [MDAnalysis Universe](https://userguide.mdanalysis.org/stable/universe.html) · [pandas read_csv](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) · [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html) · [seaborn lineplot](https://seaborn.pydata.org/generated/seaborn.lineplot.html)
@@ -135,9 +151,16 @@ Calculate the metrics first and archive the original XVG output. Use MDAnalysis 
 <details>
 <summary>Show commands</summary>
 
-Run from the corresponding replicate directory and use the `rmsd_ligand_columns.txt` produced in step 11. Add the actual input path for each independent replicate to `repeat_files`. Use consistent alignment, units, and time conventions. If reporting a summary or uncertainty interval, define the statistical unit, replicate count, and interval in the figure legend.
+Use the raw XVG from step 11 or place the archived `analysis/ligand-rmsd.xvg` in your plotting directory. Set `rmsd_source` to the actual path and run the following export in Bash. This example expects one ligand RMSD series with time in ns and distance in nm. Verify the original units, then set the axis labels or convert the values if the source differs. Add further independent replicates to `repeat_files` in the Python block using the same units and alignment.
 
-**Environment:** `md-analysis`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+```bash
+rmsd_source='rmsd_ligand.xvg'
+test -s "$rmsd_source" &&
+  awk 'NF == 2 && $1 !~ /^[#@&]/ {print $1, $2}' "$rmsd_source" > rmsd_ligand_columns.txt &&
+  test -s rmsd_ligand_columns.txt
+```
+
+Create `md-analysis` for plotting and the optional trajectory-file check. Activate it directly if it already exists.
 
 ```bash
 conda create -n md-analysis --override-channels -c conda-forge  mdanalysis pandas matplotlib 'seaborn>=0.12'
@@ -146,7 +169,7 @@ conda activate md-analysis
 
 The optional trajectory check uses the matching `Complex` files exported in step 11.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `md-analysis`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 python - <<'PY'
@@ -159,7 +182,7 @@ PY
 
 Save the plotted data and two vector formats. The axes are in ns and nm, as produced by the step 11 RMSD command.
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `md-analysis`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 python - <<'PY'

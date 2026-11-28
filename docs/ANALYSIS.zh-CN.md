@@ -2,7 +2,7 @@
 
 [English](ANALYSIS.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -14,9 +14,21 @@
 - **输出** 输出分析序列和图件输入
 - **失败时的操作** 数值异常时核查周期映像与选择
 
+### 核对已有轨迹文件
+
+在单独的分析目录操作，确认 `PATH` 上是 GROMACS 2026.3。将相互配套的全体系轨迹和 TPR 复制或链接为本地的 `md.xtc` 与 `md.tpr`。手工流程使用该次运行的 `index.ndx`。若使用本地自动 1IEP 短测产物，以运行目录中的 `md/analysis_full.ndx` 为起始索引，其中已包含配体 RMSD 的基本组。其他指标所需组请核对或补建，保留原始输入文件。
+
+```bash
+gmx check -f md.xtc -s1 md.tpr
+```
+
+核对原始轨迹的帧数、原子数和首末时间。传入 `-s1 md.tpr` 时，`gmx check` 也会按 TPR 的键定义核查轨迹。确认轨迹、TPR、索引采用同一原子顺序。若数量或顺序不符，找回实际配套的输入。只有抽取过的溶质 XTC 时，按所需分析使用同子集、同顺序的匹配参考和索引，或用与轨迹配套的 PDB 做可视化。[GROMACS check](https://manual.gromacs.org/2026.3/onlinehelp/gmx-check.html)
+
+索引缺失或组不齐全时，用 `gmx make_ndx -f md.tpr -o index.ndx`。保留 `System`、`Protein` 和 `Backbone`，按审核过的残基或原子编号选择目标配体实例，命名为 `Ligand`。将 `Protein` 和 `Ligand` 合并为 `Complex`。计算其余指标前，按 TPR 和实际选择补建 `C_alpha`、`Protein_heavy`、`Ligand_heavy`。[命名索引组示例](SIMULATION.zh-CN.md#equilibration)列出了蛋白在前的已知原子顺序所用表达式。核对蛋白和配体两组互不重叠，且指向正确的原子。[GROMACS make_ndx](https://manual.gromacs.org/2026.3/onlinehelp/gmx-make_ndx.html)
+
 ### 周期边界条件处理
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `md.tpr`, `whole.xtc`, `centered.xtc`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** GROMACS 2026.3。**预期文件：** `whole.xtc` 和 `centered.xtc`。
 
 ```bash
 gmx trjconv -s md.tpr -f md.xtc -n index.ndx -o whole.xtc -pbc whole
@@ -24,13 +36,13 @@ gmx trjconv -s md.tpr -f whole.xtc -n index.ndx -o centered.xtc -pbc mol -center
 gmx check -f centered.xtc
 ```
 
-第一条输出组选 **System**。第二条中心组选 **Protein**，输出组选 **System**。抽查最初、中间和最后几帧，确认 receptor（受体）、配体和多链装配的周期映像合理。对跨盒的多链装配按实际结构另行处理；分析解离时保留物理位移。
+第一条 `trjconv` 的输出组选 **System**。第二条中心组选 **Protein**，输出组选 **System**。抽查最初、中间和最后几帧，确认 receptor（受体）、配体和多链装配的周期映像合理。对跨盒的多链装配按实际结构另行处理；分析解离时保留物理位移。
 
 **官方用法** 同一次 `trjconv` 处理中，`-pbc`、`-center`、`-fit` 的组合应结合实测轨迹核对。查对应版本的选项和输出文件格式。 [GROMACS trjconv](https://manual.gromacs.org/2026.3/onlinehelp/gmx-trjconv.html)
 
 ### RMSD、RMSF、Rg、SASA 和口袋接触
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `md.tpr`, `rmsd_protein.xvg`, `rmsd_ligand.xvg`, `rmsf.xvg`, `rg.xvg`, `sasa.xvg`, `mindist.xvg`, `contacts.xvg`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** GROMACS 2026.3。**预期文件或核查依据：** `rmsd_protein.xvg`, `rmsd_ligand.xvg`, `rmsf.xvg`, `rg.xvg`, `sasa.xvg`, `mindist.xvg`, `contacts.xvg`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 gmx rms -s md.tpr -f centered.xtc -n index.ndx -o rmsd_protein.xvg -tu ns
@@ -39,7 +51,7 @@ gmx rmsf -s md.tpr -f centered.xtc -n index.ndx -res -o rmsf.xvg
 gmx gyrate -s md.tpr -f centered.xtc -n index.ndx -sel 'group "Protein"' -o rg.xvg
 gmx sasa -s md.tpr -f centered.xtc -n index.ndx  -surface 'group "Complex"' -output 'group "Protein"; group "Ligand"' -o sasa.xvg
 gmx mindist -s md.tpr -f centered.xtc -n index.ndx -od mindist.xvg -on contacts.xvg -d 0.35
-gmx hbond -s md.tpr -f centered.xtc -n index.ndx  -r 'group "Protein"' -t 'group "Ligand"' -num hbond.xvg
+gmx hbond -s md.tpr -f centered.xtc -n index.ndx  -r 'group "Protein"' -t 'group "Ligand"' -num hbond.xvg -hbr 0.35 -hba 30
 ```
 
 对 ACPYPE 生成的配体，要核对 GROMACS 2026.3 能读取原子元素与索引选择。[1IEP 实测报错与修复](TROUBLESHOOTING.zh-CN.md#atomic-number-analysis)给出已验证产物。
@@ -51,27 +63,29 @@ gmx hbond -s md.tpr -f centered.xtc -n index.ndx  -r 'group "Protein"' -t 'group
 | RMSF | 选择 `C_alpha`，追踪残基及链编号。 |
 | Rg、SASA | Rg 描述整个蛋白紧致程度；SASA 在复合物表面计算蛋白和配体各自暴露面积。 |
 | 最短距离及接触 | 依次选择 `Protein_heavy`、`Ligand_heavy`，记录 0.35 nm 示例阈值。 |
-| 氢键 | 示例用新版 `gmx hbond`。用 `gmx hbond -h` 检查本机语法，报告距离和角度定义。 |
+| 氢键 | 本 GROMACS 2026.3 示例的供体–受体距离阈值为 0.35 nm，受体–供体–氢角度阈值为 30°。解读计数前核对元素指派。 |
 
 
-结合蛋白对齐后的配体 RMSD、最短距离、关键残基接触与代表构象，判断候选姿态是否发生移动、翻转或解离。逐个分析独立重复，保留采样窗口与剔除依据。XVG 可用 Grace 查看，或转换为表格后绘图。 [GROMACS manual](https://manual.gromacs.org/2026.3/) · [New hydrogen-bond tool](https://manual.gromacs.org/current/onlinehelp/gmx-hbond.html)
+结合蛋白对齐后的配体 RMSD、最短距离、关键残基接触与代表构象，判断候选姿态是否发生移动、翻转或解离。逐个分析独立重复，保留采样窗口与剔除依据。XVG 可用 Grace 查看，或转换为表格后绘图。 [GROMACS manual](https://manual.gromacs.org/2026.3/) · [New hydrogen-bond tool](https://manual.gromacs.org/2026.3/onlinehelp/gmx-hbond.html)
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `md.tpr`, `complex_movie.xtc`, `complex_movie.pdb`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** GROMACS 2026.3。**预期文件或核查依据：** `complex_movie.xtc`, `complex_movie.pdb`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-grep -v '^[#@]' rmsd_ligand.xvg > rmsd_ligand_columns.txt
-gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.xtc -dt 100
-gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.pdb -dump 0
+gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.xtc -skip 10
+gmx check -f complex_movie.xtc
+read -r -p 'First time in complex_movie.xtc (ps): ' first_frame_ps
+gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o complex_movie.pdb -dump "${first_frame_ps:?Enter the first frame time in ps}"
 ```
 
-两个导出命令都选 **Complex**。如果动画轨迹首帧时间并非 0 ps，先用 `gmx check -f complex_movie.xtc` 查出实际时间，再替换 `-dump 0` 中的数值。配套结构和动画轨迹应使用相同原子顺序。
+两次导出都选 **Complex**。影片默认每十个已保存帧保留一帧，按轨迹调整 `-skip`。输入影片首帧的实际时间（ps）以导出参考 PDB，并确认参考 PDB 与轨迹的原子顺序相同。
 
-按所选时间窗的接触、位移或构象分组选择代表帧。下例用 50,000 ps 作为示例，先运行 `gmx check -f centered.xtc` 确认实际时间，替换后再导出，选 `Complex`。报告选帧依据和实际导出时间。
+按所选时间窗的接触、位移或构象分组选择代表帧。下例用 实际时间（ps） 作为示例，先运行 `gmx check -f centered.xtc` 确认实际时间，替换后再导出，选 `Complex`。报告选帧依据和实际导出时间。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `md.tpr`, `representative.pdb`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** GROMACS 2026.3。**预期文件或核查依据：** `representative.pdb`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o representative.pdb -dump 50000
+read -r -p 'Reviewed representative frame time (ps): ' frame_ps
+gmx trjconv -s md.tpr -f centered.xtc -n index.ndx -o representative.pdb -dump "${frame_ps:?Enter a reviewed frame time in ps}"
 ```
 
 <a name="publication-figures"></a>
@@ -128,6 +142,8 @@ save pocket_view.pse
 
 建议引用格式 · The PyMOL Molecular Graphics System, Version X.Y, Schrödinger, LLC. 将 X.Y 换成实际版本。 [PyMOL Citation Guidance](https://pymol.org/support.html)
 
+<a name="python-figures"></a>
+
 #### B. Python 轨迹检查与定量绘图
 
 GROMACS 先生成指标和原始 XVG。MDAnalysis 可核查结构与轨迹文件并做自定义选择。pandas 汇总带重复编号的数据，Matplotlib 和 seaborn 控制颜色、坐标单位和矢量输出。下面以蛋白拟合后的配体 heavy atom（重原子） RMSD 为例。<sup>[21](REFERENCES.zh-CN.md#ref-21),[22](REFERENCES.zh-CN.md#ref-22),[23](REFERENCES.zh-CN.md#ref-23),[24](REFERENCES.zh-CN.md#ref-24),[25](REFERENCES.zh-CN.md#ref-25)</sup> [MDAnalysis Universe](https://userguide.mdanalysis.org/stable/universe.html) · [pandas read_csv](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html) · [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html) · [seaborn lineplot](https://seaborn.pydata.org/generated/seaborn.lineplot.html)
@@ -135,9 +151,16 @@ GROMACS 先生成指标和原始 XVG。MDAnalysis 可核查结构与轨迹文件
 <details>
 <summary>展开命令</summary>
 
-在 MD 重复目录运行，使用步骤 11 生成的 `rmsd_ligand_columns.txt`。有多个重复时，在 `repeat_files` 中为每份数据添加真实路径；每份 RMSD 需采用同一拟合、单位和时间定义。下面逐条显示重复轨迹。若加汇总曲线或区间，图注明确统计单位、重复数和区间定义。
+使用步骤 11 产生的原始 XVG，或将归档的 `analysis/ligand-rmsd.xvg` 放入出图目录。将 `rmsd_source` 改成实际路径，再用 Bash 导出数据。示例输入为单条配体 RMSD 序列，时间单位 ns，距离单位 nm。先核对原始数据的单位，若有差异则修改轴标或换算数据。在 Python 的 `repeat_files` 中加入其他独立重复时，保持单位和拟合方法一致。
 
-**环境：** `md-analysis`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+```bash
+rmsd_source='rmsd_ligand.xvg'
+test -s "$rmsd_source" &&
+  awk 'NF == 2 && $1 !~ /^[#@&]/ {print $1, $2}' "$rmsd_source" > rmsd_ligand_columns.txt &&
+  test -s rmsd_ligand_columns.txt
+```
+
+创建 `md-analysis` 用于出图和可选的轨迹文件检查。若已有该环境，直接激活即可。
 
 ```bash
 conda create -n md-analysis --override-channels -c conda-forge  mdanalysis pandas matplotlib 'seaborn>=0.12'
@@ -146,7 +169,7 @@ conda activate md-analysis
 
 可选的轨迹读取检查使用步骤 11 配套导出的 `Complex` 文件。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `md-analysis`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 python - <<'PY'
@@ -159,7 +182,7 @@ PY
 
 用下面的命令保存绘图数据和两种矢量文件。两个坐标轴分别是 ns 和 nm，对应步骤 11 的 RMSD 命令。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `md-analysis`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 python - <<'PY'

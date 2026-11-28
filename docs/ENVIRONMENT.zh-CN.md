@@ -2,7 +2,7 @@
 
 [English](ENVIRONMENT.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -30,7 +30,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 **环境：** `docktools, ligandtools, gmx-cpu`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-conda create -n docktools --override-channels -c conda-forge python=3.11 vina=1.2.7 meeko rdkit gemmi openbabel
+conda create -n docktools --override-channels -c conda-forge python=3.11 vina=1.2.7 \
+  meeko=0.8.0 rdkit=2026.03.1 gemmi=0.7.5 openbabel=3.2.1
 conda create -n ligandtools --override-channels -c conda-forge ambertools acpype openbabel
 conda create -n gmx-cpu --override-channels -c conda-forge gromacs=2026.3
 
@@ -124,7 +125,7 @@ wsl --install -d Ubuntu
 - **输出** 输出重对接位姿与 RMSD
 - **失败时的操作** 找不到参考位姿时核对化学身份和盒几何
 
-先用 Scripps 官方示例复跑 c-Abl 与伊马替尼（PDB **1IEP**）。从官方示例目录下载 `1iep_receptorH.pdb` 和 `1iep_ligand.sdf` 到一个新目录，在该目录运行以下命令。此处的盒坐标只适用于该示例坐标系。<sup>[2](REFERENCES.zh-CN.md#ref-2),[3](REFERENCES.zh-CN.md#ref-3),[4](REFERENCES.zh-CN.md#ref-4)</sup> [Official walkthrough](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [Upstream example files](https://github.com/forlilab/AutoDock-Vina/tree/develop/example/basic_docking) · [RCSB 1IEP](https://www.rcsb.org/structure/1IEP)
+使用本地仓库中的公开 `1IEP` 固定示例。在仓库根目录先运行 `make fixtures` 校验，再做手工制备。下方官方链接用于追溯数据来源。搜索盒只适用于本示例的受体坐标系。 <sup>[2](REFERENCES.zh-CN.md#ref-2),[3](REFERENCES.zh-CN.md#ref-3),[4](REFERENCES.zh-CN.md#ref-4)</sup> [Official walkthrough](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [Upstream example files](https://github.com/forlilab/AutoDock-Vina/tree/develop/example/basic_docking) · [RCSB 1IEP](https://www.rcsb.org/structure/1IEP)
 
 **结构来源与验证依据** 记录 1IEP 的结构 DOI 和参考配体实例。报告重对接 RMSD 时，注明原子匹配与对称性处理方法。<sup>[5](REFERENCES.zh-CN.md#ref-5)</sup> [1IEP structure DOI](https://doi.org/10.2210/pdb1IEP/pdb) · [DockRMSD methodology](https://doi.org/10.1186/s13321-019-0362-7)
 
@@ -141,7 +142,7 @@ mk_prepare_ligand.py -i examples/1iep/1iep_ligand.sdf -o 1iep_ligand.pdbqt
 
 **CPU：AutoDock Vina**
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `1iep_docked.pdbqt`, `1iep_docked.sdf`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docktools`。**预期文件或核查依据：** `1iep_docked.pdbqt`, `1iep_docked.sdf`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 vina --receptor 1iep_receptor.pdbqt --ligand 1iep_ligand.pdbqt  --config 1iep_receptor.box.txt --scoring vina --cpu 4 --seed 202601  --exhaustiveness 32 --out 1iep_docked.pdbqt
@@ -164,7 +165,7 @@ find 1iep_gpu -maxdepth 1 -type f -name '*.pdbqt' -print
 
 **验收** 确认 PDBQT 有 Vina 分数和姿态，SDF 可以读取。分别用公开参考结果检查 CPU 和 GPU 的 docking pose（对接位姿）与关键接触。正式做共晶重对接时，先把参考与对接结构置于同一 receptor（受体）坐标系，比较带对称校正的 heavy atom（重原子） RMSD，保持配体在各自原位。约 2 Å 是常用参考值。可另用 BioExcel 的公开案例练习 MD 复合物建系。 [Scripps expected results](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#expected-results) · [BioExcel complex setup](https://github.com/bioexcel/biobb_wf_protein-complex_md_setup)
 
-**定量重对接** 在 RCSB 1IEP 的 **Small Molecules → STI → Instance Coordinates** 下载对应链的 SDF，保存为 `1iep_crystal_ligand.sdf`。在结构查看器里确认其链/构象对应 receptor（受体），并把两者置于同一 receptor（受体）坐标系。先核对化学身份，再用 Open Babel 的 `obrms` 对每个对接姿态计算 heavy atom（重原子） RMSD（Å）。`obrms` 按 heavy atom（重原子）连接匹配并考虑等价映射，`-m` 会对配体再拟合，此处省略该选项。<sup>[6](REFERENCES.zh-CN.md#ref-6)</sup> [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
+**定量重对接** 使用归档的 STI 实例 `examples/regression/1iep/crystal_ligand.sdf`，先核对受体坐标系与配体化学身份。用 Open Babel `obrms` 计算考虑对称性的重原子 RMSD，单位 Å。省略 `-m`，保留受体坐标系中的配体位置。<sup>[6](REFERENCES.zh-CN.md#ref-6)</sup> [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
 
 **环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
@@ -179,9 +180,10 @@ GPU 同样比较。把按步骤 05 恢复的 1IEP GPU 多 docking pose（对接�
 
 若最佳匹配 docking pose（对接位姿）已采样到但排位偏低，分别记录该 docking pose（对接位姿）的排名和重对接 RMSD，并复核口袋接触与配体状态。[重对接排错](TROUBLESHOOTING.zh-CN.md#docking-errors)
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
+conda activate docktools
 obabel 1iep_gpu_docked.sdf -ocan
 obrms examples/regression/1iep/crystal_ligand.sdf 1iep_gpu_docked.sdf | tee 1iep_gpu_redocking_rmsd.txt
 ```

@@ -2,7 +2,7 @@
 
 [English](DOCKING.md) · **简体中文**
 
-中英文同步于 2026-11-28。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
+中英文同步于 2026-11-29。[已验证的工作流提交](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914)。
 
 [仓库首页](../README.zh-CN.md#contents)
 
@@ -93,7 +93,7 @@ obabel ligands/candidates.sdf -f 1 -l 1 -O ligands/state001.sdf
 
 **用 RDKit 检查候选** 命令块在已激活的 `docktools` 中执行。进入 Python 后读入所选 SDF，核对手性、整数净电荷、显式氢和 3D 标记。若读取失败或结构与预期不符，回到候选选择。退出 Python 后再调用 Meeko。 [RDKit Python guide](https://www.rdkit.org/docs/GettingStartedInPython.html)
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 python
@@ -119,6 +119,8 @@ sha256sum input/* > qc/input_sha256.txt
 ```
 
 将下列六项保存为 `dock/box.txt`，把示例值替换为自己测定的中心与尺寸。旧 AutoGrid 参数中的网格间隔数乘间距才得到 Å。对于无已知口袋的结构，可另建探索性搜索盒并检查采样收敛和口袋证据。
+
+下面是公开 1IEP 搜索盒的数值，单位 Å。使用其他受体时，应核对并替换全部六个值。
 
 ```ini
 center_x = 15.190
@@ -151,21 +153,23 @@ size_z = 20.0
 
 **环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
+若 Vina 返回错误，先查看日志，再用新的输出目录重试。
+
 ```bash
-conda activate docktools
-mkdir dock/cpu_single_202601
-vina --receptor dock/receptor.pdbqt --ligand ligands/pdbqt/state001.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --out dock/cpu_single_202601/state001_out.pdbqt  > dock/cpu_single_202601/vina.log 2>&1
-tail -20 dock/cpu_single_202601/vina.log
-grep -E '^MODEL|^REMARK VINA RESULT' dock/cpu_single_202601/state001_out.pdbqt
+conda activate docktools &&
+mkdir dock/cpu_single_202601 &&
+  vina --receptor dock/receptor.pdbqt --ligand ligands/pdbqt/state001.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --out dock/cpu_single_202601/state001_out.pdbqt  > dock/cpu_single_202601/vina.log 2>&1 &&
+  tail -20 dock/cpu_single_202601/vina.log &&
+  grep -E '^MODEL|^REMARK VINA RESULT' dock/cpu_single_202601/state001_out.pdbqt
 ```
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
-mkdir dock/cpu_batch_202601
-time vina --receptor dock/receptor.pdbqt --batch ligands/pdbqt/*.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --dir dock/cpu_batch_202601  > dock/cpu_batch_202601/vina.log 2>&1
-find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | wc -l
-find dock/cpu_batch_202601 -maxdepth 1 -type f -name '*.pdbqt' | wc -l
+mkdir dock/cpu_batch_202601 &&
+  time vina --receptor dock/receptor.pdbqt --batch ligands/pdbqt/*.pdbqt  --config dock/box.txt --scoring vina --cpu 4 --exhaustiveness 32  --num_modes 20 --seed 202601 --dir dock/cpu_batch_202601  > dock/cpu_batch_202601/vina.log 2>&1 &&
+  find ligands/pdbqt -maxdepth 1 -type f -name '*.pdbqt' | wc -l &&
+  find dock/cpu_batch_202601 -maxdepth 1 -type f -name '*.pdbqt' | wc -l
 ```
 
 `--batch` 针对同一 receptor（受体）逐个处理配体，`--cpu 4` 控制一次 Vina 进程的线程数。拆分大库后可在 CPU 配额内并行运行多个独立批次。多个 receptor（受体）分别使用各自的搜索盒。 [Vina native batch mode](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
@@ -186,14 +190,16 @@ mkdir "$win_job" &&
   cp ligands/pdbqt/*.pdbqt "$win_job/ligands/pdbqt/"
 ```
 
-在 Windows PowerShell 进入交接目录。示例假定官方可执行文件放在该目录并命名为 `vina.exe`。如已安装在其他位置，将 `$Vina` 改为完整路径。 [Official Windows batch instructions](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
+在 Windows PowerShell 进入交接目录。示例假定官方可执行文件放在该目录并命名为 `vina.exe`。如已安装在其他位置，将 `$Vina` 改为完整路径。以下代码在执行这次 Windows 批处理的同一个 PowerShell 会话中运行。 [Official Windows batch instructions](https://autodock-vina.readthedocs.io/en/latest/docking_in_batch.html)
 
 **环境：** `PowerShell`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```powershell
-Set-Location (Join-Path $env:USERPROFILE 'MD_exchange\target01')
+Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'MD_exchange\target01') -ErrorAction Stop
 $Vina = '.\vina.exe'
+if (!(Test-Path -LiteralPath $Vina -PathType Leaf)) { throw 'Set $Vina to the Vina executable path.' }
 & $Vina --version
+if ($LASTEXITCODE -ne 0) { throw 'Vina version check failed.' }
 $Ligands = @(Get-ChildItem '.\ligands\pdbqt' -Filter '*.pdbqt' -File |
     Sort-Object Name | Select-Object -ExpandProperty FullName)
 if ($Ligands.Count -eq 0) { throw 'No ligand PDBQT files found' }
@@ -346,18 +352,22 @@ Scripps AutoDock-GPU 支持 CUDA/OpenCL，采用 AutoDock4 路线和相应的亲
 
 **环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
+已有数据时，将 `protein_file`、`source_sdf` 和 `pose_file` 设为相互匹配的文件。Windows 或 GPU 输出使用步骤 04 实际列出的 PDBQT 路径。复制成功后才进入新重复目录。
+
 ```bash
 conda activate docktools
 ff_family=amber
+protein_file=input/protein.pdb
+source_sdf=ligands/state001.sdf
 pose_file=dock/cpu_single_202601/state001_out.pdbqt
 run_dir="md/${ff_family}_state001_pose01_rep01"
 
-test -s "$pose_file" &&
-  mkdir "$run_dir" &&
-  cp input/protein.pdb "$run_dir/protein.pdb" &&
-  cp ligands/state001.sdf "$run_dir/state_original.sdf" &&
-  cp "$pose_file" "$run_dir/selected_run.pdbqt" &&
-cd "$run_dir"
+test -s "$protein_file" && test -s "$source_sdf" && test -s "$pose_file" &&
+  mkdir -p -- "$(dirname -- "$run_dir")" && mkdir -- "$run_dir" &&
+  cp -- "$protein_file" "$run_dir/protein.pdb" &&
+  cp -- "$source_sdf" "$run_dir/state_original.sdf" &&
+  cp -- "$pose_file" "$run_dir/selected_run.pdbqt" &&
+  cd -- "$run_dir"
 ```
 
 ### A. 保留 Meeko 映射
@@ -375,7 +385,7 @@ grep -m 1 '^REMARK H PARENT ' selected_run.pdbqt || true
 
 映射检查通过后导出。对接输出没有这些记录时，旧 ADT 结果按路线 B 处理。若需要重新对接，为新 docking pose（对接位姿）单独记录引擎、参数和筛选依据。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** `docked_poses.sdf`。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docktools`。**预期文件或核查依据：** `docked_poses.sdf`。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 mk_export.py selected_run.pdbqt -s docked_poses.sdf
@@ -417,7 +427,7 @@ obabel docked_poses.sdf -ocan
 
 核对 SDF 记录、docking pose（对接位姿）来源和评分后再提取。使用 PDBQT 转出的 SDF 时，核对 SDF 记录与 PDBQT MODEL 的对应关系。下面以第 1 条为示例。
 
-**环境：** `docking-gromacs`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
+**环境：** `docktools`。**预期文件或核查依据：** 终端输出或下方命令指定的文件。耗时和磁盘规划见快速入门的分阶段表。
 
 ```bash
 obabel docked_poses.sdf -f 1 -l 1 -O lig_pose.sdf

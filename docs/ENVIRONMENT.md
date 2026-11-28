@@ -2,7 +2,7 @@
 
 **English** · [简体中文](ENVIRONMENT.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -30,7 +30,8 @@ source "$HOME/miniforge3/etc/profile.d/conda.sh"
 **Environment:** `docktools, ligandtools, gmx-cpu`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
-conda create -n docktools --override-channels -c conda-forge python=3.11 vina=1.2.7 meeko rdkit gemmi openbabel
+conda create -n docktools --override-channels -c conda-forge python=3.11 vina=1.2.7 \
+  meeko=0.8.0 rdkit=2026.03.1 gemmi=0.7.5 openbabel=3.2.1
 conda create -n ligandtools --override-channels -c conda-forge ambertools acpype openbabel
 conda create -n gmx-cpu --override-channels -c conda-forge gromacs=2026.3
 
@@ -124,7 +125,7 @@ Install the WSL-capable NVIDIA driver on the **Windows host** and check `nvidia-
 - **Outputs** redocked poses and RMSD
 - **If a step fails** review chemical identity and box geometry if redocking misses the reference
 
-Use the Scripps c-Abl–imatinib example (PDB **1IEP**) as a reference redocking benchmark. Use the checksummed repository copy of the Scripps inputs in the quickstart. The search box is defined in the example receptor's coordinate frame.<sup>[2](REFERENCES.md#ref-2),[3](REFERENCES.md#ref-3),[4](REFERENCES.md#ref-4)</sup> [Official walkthrough](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [Upstream example files](https://github.com/forlilab/AutoDock-Vina/tree/develop/example/basic_docking) · [RCSB 1IEP](https://www.rcsb.org/structure/1IEP)
+Use the public `1IEP` benchmark from the local checkout. Run `make fixtures` from the repository root before manual preparation. The source links document provenance. The box only applies to this example's receptor frame. <sup>[2](REFERENCES.md#ref-2),[3](REFERENCES.md#ref-3),[4](REFERENCES.md#ref-4)</sup> [Official walkthrough](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html) · [Upstream example files](https://github.com/forlilab/AutoDock-Vina/tree/develop/example/basic_docking) · [RCSB 1IEP](https://www.rcsb.org/structure/1IEP)
 
 **Structure provenance and validation.** Record the structure DOI and reference ligand instance. Report the atom correspondence and symmetry treatment used for redocking RMSD.<sup>[5](REFERENCES.md#ref-5)</sup> [1IEP structure DOI](https://doi.org/10.2210/pdb1IEP/pdb) · [DockRMSD methodology](https://doi.org/10.1186/s13321-019-0362-7)
 
@@ -141,7 +142,7 @@ mk_prepare_ligand.py -i examples/1iep/1iep_ligand.sdf -o 1iep_ligand.pdbqt
 
 **CPU: AutoDock Vina**
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** `1iep_docked.pdbqt`, `1iep_docked.sdf`. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docktools`. **Expected files or evidence:** `1iep_docked.pdbqt`, `1iep_docked.sdf`. For planning, use the per-stage budget in the quickstart.
 
 ```bash
 vina --receptor 1iep_receptor.pdbqt --ligand 1iep_ligand.pdbqt  --config 1iep_receptor.box.txt --scoring vina --cpu 4 --seed 202601  --exhaustiveness 32 --out 1iep_docked.pdbqt
@@ -164,7 +165,7 @@ For the GPU run, apply the pose export and verification procedure in step 05. Co
 
 **Check.** Confirm that the PDBQT contains pose and score records and that the recovered SDF is readable. Evaluate each engine's pose recovery and key contacts against the co-crystal reference. Calculate symmetry-aware ligand heavy-atom root-mean-square deviation (RMSD) in a common receptor frame without independently fitting the ligands. Approximately 2 Å is a conventional reference for pose recovery. A separate BioExcel tutorial covers MD complex setup. [Scripps expected results](https://autodock-vina.readthedocs.io/en/latest/docking_basic.html#expected-results) · [BioExcel complex setup](https://github.com/bioexcel/biobb_wf_protein-complex_md_setup)
 
-**Quantitative redocking.** In the RCSB 1IEP entry, download the STI instance coordinates as SDF for the matching chain and save them as `1iep_crystal_ligand.sdf`. Verify the ligand conformer and common receptor frame in a structure viewer. After confirming chemical identity, use Open Babel `obrms` to calculate per-pose heavy-atom RMSD in Å. It searches equivalent correspondences by heavy-atom connectivity. Leave `-m` unset to preserve each pose in the receptor frame.<sup>[6](REFERENCES.md#ref-6)</sup> [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
+**Quantitative redocking.** Use the archived STI instance in `examples/regression/1iep/crystal_ligand.sdf`. Check the common receptor frame and ligand chemistry. Use Open Babel `obrms` for symmetry-aware heavy-atom RMSD in Å. Leave `-m` unset to compare coordinates in the receptor frame.<sup>[6](REFERENCES.md#ref-6)</sup> [RCSB 1IEP](https://www.rcsb.org/structure/1IEP) · [Open Babel obrms](https://github.com/openbabel/openbabel/blob/master/tools/obrms.cpp)
 
 **Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
@@ -179,9 +180,10 @@ Export the GPU poses to `1iep_gpu_docked.sdf` using step 05. Compare the top-ran
 
 If a reference-like pose is sampled but ranked poorly, report its rank and redocking RMSD and review pocket contacts and ligand microstate. [Redocking troubleshooting](TROUBLESHOOTING.md#docking-errors)
 
-**Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
+**Environment:** `docktools`. **Expected files or evidence:** terminal output or the paths named below. For planning, use the per-stage budget in the quickstart.
 
 ```bash
+conda activate docktools
 obabel 1iep_gpu_docked.sdf -ocan
 obrms examples/regression/1iep/crystal_ligand.sdf 1iep_gpu_docked.sdf | tee 1iep_gpu_redocking_rmsd.txt
 ```

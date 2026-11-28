@@ -2,7 +2,7 @@
 
 **English** · [简体中文](SIMULATION.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -13,6 +13,8 @@ Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com
 - **Input** Box-ready complex and MDPs
 - **Outputs** solvated minimized equilibrated system
 - **If a step fails** inspect first grompp or dynamics failure
+
+Run from the prepared replicate directory with GROMACS 2026.3 on `PATH`. Check that `complex_raw.gro`, `topol.top`, its local includes, and the stage MDPs are present before boxing. An already solvated system starts from its matching coordinate and topology files at the appropriate later stage.
 
 ### Box, solvent, and ions
 
@@ -142,7 +144,9 @@ The optional 20 ps smoke test and 1 ns pilot assess numerical stability after re
 
 ```bash
 gmx grompp -f smoke.mdp -c npt.gro -t npt.cpt -p topol.top -n index.ndx  -o smoke.tpr -pp smoke_processed.top -po smoke_out.mdp
-grep -n 'position_restraints' smoke_processed.top
+if grep -n -E '^[[:space:]]*\[[[:space:]]*position_restraints[[:space:]]*\]' smoke_processed.top; then
+  echo 'Review active position restraints before running this TPR.' >&2
+fi
 ```
 
 **Environment:** `docking-gromacs`. **Expected files or evidence:** terminal output or the paths named below. Runtime and output size depend on system size and simulated duration.
@@ -151,13 +155,20 @@ grep -n 'position_restraints' smoke_processed.top
 gmx mdrun -v -deffnm smoke "${md_backend[@]}"
 ```
 
+To run the pilot directly from accepted NPT, set `PILOT_START=npt` in the block below. Use `smoke` only when the optional smoke run finished and its GRO and CPT passed review. Keep `pilot.mdp` unrestrained as described in [step 08](SYSTEM_SETUP.md#simulation).
+
 **Environment:** `docking-gromacs`. **Expected files or evidence:** `topol.top`, `pilot.tpr`, `pilot_processed.top`. Runtime and output size depend on system size and simulated duration.
 
 ```bash
-gmx grompp -f pilot.mdp -c smoke.gro -t smoke.cpt -p topol.top -n index.ndx  -o pilot.tpr -pp pilot_processed.top -po pilot_out.mdp
-gmx mdrun -v -deffnm pilot "${md_backend[@]}"
-gmx check -f pilot.xtc
-grep -A2 'Performance:' pilot.log
+(
+  set -e
+  PILOT_START=smoke
+  test -s "$PILOT_START.gro" && test -s "$PILOT_START.cpt" || exit 1
+  gmx grompp -f pilot.mdp -c "$PILOT_START.gro" -t "$PILOT_START.cpt" -p topol.top -n index.ndx  -o pilot.tpr -pp pilot_processed.top -po pilot_out.mdp
+  gmx mdrun -v -deffnm pilot "${md_backend[@]}"
+  gmx check -f pilot.xtc
+  grep -A2 'Performance:' pilot.log
+)
 ```
 
 Compile the production TPR from the selected validated endpoint. The example uses `pilot`. Set it to `npt` for a protocol that starts from an accepted NPT endpoint, and keep the GRO and checkpoint from the same stage. Check the processed MDP, expanded topology, and compiled TPR, and document the choice of starting state.
@@ -167,7 +178,9 @@ Compile the production TPR from the selected validated endpoint. The example use
 ```bash
 START=pilot
 gmx grompp -f md.mdp -c "$START.gro" -t "$START.cpt" -p topol.top -n index.ndx  -o md.tpr -pp md_processed.top -po md_out.mdp
-grep -n 'position_restraints' md_processed.top
+if grep -n -E '^[[:space:]]*\[[[:space:]]*position_restraints[[:space:]]*\]' md_processed.top; then
+  echo 'Review active position restraints before running this TPR.' >&2
+fi
 grep -Ei '^[[:space:]]*(dt|nsteps|nstxout-compressed|compressed-x-grps)[[:space:]]*=' md_out.mdp
 ```
 

@@ -2,7 +2,7 @@
 
 **English** · [简体中文](TROUBLESHOOTING.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 [Repository home](../README.md#contents)
 
@@ -67,6 +67,8 @@ Record the last completed step and its outputs. Resume from the last validated c
 **When to pause.** Pause when essential pocket geometry, domain arrangement, chemical state, or topology conversion remains unresolved. Check compatibility across protein, lipid, glycans, water, ions, and ligand parameters. Explicit pair definitions can preserve validated heterogeneous 1–4 scaling. Changes to global `fudgeQQ` or `fudgeLJ` affect all pairs generated from defaults.<sup>[1](#ref-1),[2](#ref-2),[3](#ref-3)</sup> [AlphaFold DB confidence and PAE](https://alphafold.ebi.ac.uk/faq) · [Amber reference manuals](https://ambermd.org/Manuals.php) · [GROMACS topology file formats](https://manual.gromacs.org/documentation/current/reference-manual/topologies/topology-file-formats.html) · [Lipid21 paper](https://doi.org/10.1021/acs.jctc.1c01217) · [GLYCAM06 paper](https://doi.org/10.1002/jcc.20820) · [PACKMOL-Memgen paper](https://doi.org/10.1021/acs.jcim.9b00269)
 
 **Equilibration checks for membrane systems.** Inspect temperature, volume, lateral bilayer area, thickness, leaflet behavior, and essential covalent links. Review geometry and periodic imaging when membrane folds or image jumps appear. Interpret area, thickness, and area per lipid against composition, temperature, and metric definition. Verify which position restraints are active before interpreting subsequent relaxation. [GROMACS MDP parameters](https://manual.gromacs.org/documentation/current/user-guide/mdp-options.html) · [Lipid21 methods](https://doi.org/10.1021/acs.jctc.1c01217)
+
+**Review docking repairs and MD topology separately.** Inspect biological assembly and binding-pocket components before editing. For missing side-chain atoms, review alternate locations and rebuild only justified local geometry. A residue such as selenomethionine (MSE) requires a documented, justified conversion or a validated template for the retained chemistry. For a pocket metal or cofactor, record retained components and coordination, then validate its docking representation and MD parameters separately. [Meeko receptor templates](https://meeko.readthedocs.io/en/develop/py_build_temp.html) · [Complex-system parameter checks](RESEARCH.md#complex-systems)
 
 <a name="docking-errors"></a>
 

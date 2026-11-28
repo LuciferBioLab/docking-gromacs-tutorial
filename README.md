@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-Languages synchronized 2026-11-28. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
+Languages synchronized 2026-11-29. [Verified workflow commit](https://github.com/LuciferBioLab/docking-gromacs-tutorial/commit/d139618900e79f0dc186d3bb64fbe5be4cc25914).
 
 A reproducible workflow for soluble protein–ligand docking and molecular dynamics. Use dedicated modeling for membrane systems, covalent ligands, essential metals or cofactors, and nonstandard residues. The public 1IEP example uses a defined **+1** ligand microstate.
 
@@ -12,7 +12,7 @@ A reproducible workflow for soluble protein–ligand docking and molecular dynam
 
 [FAQ](docs/FAQ.md) · [Version matrix](docs/QUICKSTART.md#version-matrix) · [Validation boundary](docs/QUICKSTART.md#validation-boundary)
 
-**Verification:** 2026-11-28 public 1IEP Linux x86-64 CPU run. The documentation and executable commands correspond to the same source commit.
+**Verification:** 2026-11-28 public 1IEP Linux x86-64 CPU run. The linked commit identifies the verified CPU workflow.
 
 <a name="contact"></a>
 
@@ -30,9 +30,9 @@ A reproducible workflow for soluble protein–ligand docking and molecular dynam
 
 ## Start here
 
-1. **Dock only:** complete steps 01–05 using the checksummed 1IEP files. [Quickstart](docs/QUICKSTART.md#dock).
-2. **Run MD:** use a reviewed docking pose or a complete prepared system. [System setup](docs/SYSTEM_SETUP.md#topology) · [Quickstart](docs/QUICKSTART.md#quickstart-md).
-3. **Make figures:** start with a matching trajectory, topology and index. [Analysis](docs/ANALYSIS.md#analysis).
+1. **Dock only:** use the [checksummed 1IEP example or your own inputs](docs/QUICKSTART.md#dock) to generate checked poses.
+2. **Run MD from an existing pose:** [stage a reviewed PDB and pose SDF](docs/QUICKSTART.md#existing-pose) and enter at parameterization or the matching prepared stage.
+3. **Analyze or make figures:** [start with matching trajectory inputs or existing figure data](docs/QUICKSTART.md#existing-trajectory).
 
 <a name="overview"></a>
 
